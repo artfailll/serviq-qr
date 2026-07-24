@@ -1,0 +1,28 @@
+{
+  "aciklama": "Yeni müşteri kaydında kullanılacak Canva şablon kütüphanesi. Her şablonda 'İŞLETME ADI' placeholder'ı var — yeni müşteride gerçek isim/logo/renk ile değiştirilip PDF/PNG export edilir.",
+  "menu_sablonlari": [
+    { "stil": "Modern minimalist kafe", "design_id": "DAHOJ5qRYHs", "edit_url": "https://www.canva.com/d/rjfDyAI2Su3uJtx" },
+    { "stil": "Geleneksel Türk restoranı", "design_id": "DAHOJ11DoL8", "edit_url": "https://www.canva.com/d/eWrFq7kR9oJ62Id" },
+    { "stil": "Fine dining (şık, koyu tema)", "design_id": "DAHOJ8hefQg", "edit_url": "https://www.canva.com/d/Bo0kBqku3ynsn9I" },
+    { "stil": "Fast food / burger", "design_id": "DAHOJy9JORo", "edit_url": "https://www.canva.com/d/CAhpyPVERHKwqt0" },
+    { "stil": "Pastane / tatlıcı", "design_id": "DAHOJ5go24c", "edit_url": "https://www.canva.com/d/gpq0wKTBtdXepMX" },
+    { "stil": "Kebapçı / ocakbaşı", "design_id": "DAHOJ0EkIjg", "edit_url": "https://www.canva.com/d/3J1u3XYY7pDa3OJ" },
+    { "stil": "Meyhane / bar (vintage)", "design_id": "DAHOJ3N1u3A", "edit_url": "https://www.canva.com/d/PDd6crprQG36wZU" },
+    { "stil": "Kahvaltı salonu", "design_id": "DAHOJ6px02w", "edit_url": "https://www.canva.com/d/VQrcWXL1xegghWr" },
+    { "stil": "Pizza / İtalyan", "design_id": "DAHOJz3FB-4", "edit_url": "https://www.canva.com/d/UIhL0EA9XJN2-zV" },
+    { "stil": "Balık / deniz ürünleri", "design_id": "DAHOJ6mMre4", "edit_url": "https://www.canva.com/d/Z3f7ioU79hzPeaN" }
+  ],
+  "qr_stand_sablonlari": [
+    { "stil": "Modern minimalist", "design_id": "DAHOJ7tfUrQ", "edit_url": "https://www.canva.com/d/CnoYF9-yqz4k58X" },
+    { "stil": "Geleneksel Türk restoranı", "design_id": "DAHOJwqbI8o", "edit_url": "https://www.canva.com/d/BJCwIthA5qYf3Tv" },
+    { "stil": "Fine dining (lüks, koyu)", "design_id": "DAHOJ8aFufI", "edit_url": "https://www.canva.com/d/uOFz2X93a_tZ1cR" },
+    { "stil": "Fast food / burger", "design_id": "DAHOJ7Bo85E", "edit_url": "https://www.canva.com/d/7eHiMsqMQR_MaBw" },
+    { "stil": "Pastane / tatlıcı", "design_id": "DAHOJ4yBGi0", "edit_url": "https://www.canva.com/d/IHC9E76XvF7FXYV" },
+    { "stil": "Kebapçı / ocakbaşı", "design_id": "DAHOJ1XfcsU", "edit_url": "https://www.canva.com/d/m0VvJGhyXaveu0C" },
+    { "stil": "Meyhane / bar (vintage)", "design_id": "DAHOJ_sA5W4", "edit_url": "https://www.canva.com/d/AQkCN0Mq_r1UHAU" },
+    { "stil": "Kahvaltı salonu", "design_id": "DAHOJ65j_t4", "edit_url": "https://www.canva.com/d/LdA5jR78jNPTDWt" },
+    { "stil": "Pizza / İtalyan", "design_id": "DAHOJ-a92A4", "edit_url": "https://www.canva.com/d/zISLqcWMAHrjRdR" },
+    { "stil": "Balık / deniz ürünleri", "design_id": "DAHOJ2oxMSo", "edit_url": "https://www.canva.com/d/0UMNizAK9uEfDJo" }
+  ],
+  "kullanim": "Yeni müşteri kaydında: işletme tipine uygun stili seç → tasarımı kopyala (copy-design) → İŞLETME ADI metnini gerçek isimle değiştir (start-editing-transaction + perform-editing-operations) → export-design ile PDF/PNG al → müşteriye gönder."
+}

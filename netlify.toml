@@ -1,0 +1,54 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# Kök adres = tanıtım sitesi (public/ana-sayfa.dc.html).
+# "200!" zorunlu: index.html dosyası var olduğu için normal redirect çalışmaz.
+# Uygulama rotaları (/menu, /kasa, /garson, /yonetim) etkilenmez.
+[[redirects]]
+  from = "/"
+  to = "/ana-sayfa.dc.html"
+  status = 200
+  force = true
+
+# SPA fallback — tüm yollar index.html'e gitsin (React Router için)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# index.html ASLA önbelleğe alınmasın — müşteri her QR okuttuğunda
+# en güncel sürümü alsın (eski/bozuk sürüm önbellekte kalmasın).
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Hash'li dosyalar (içerik değişince adı da değişir) sonsuza dek önbellekte
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Service worker & manifest her zaman taze — güncelleme takılmasın
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Tanıtım sayfaları güncellenince anında yansısın
+[[headers]]
+  for = "/*.dc.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

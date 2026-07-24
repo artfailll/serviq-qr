@@ -1,0 +1,7 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": true,
+    "_comment": "BASİT BAŞLANGIÇ KURALLARI — herkese açık okuma/yazma. Restoran içi kullanım için yeterlidir. Güvenliği artırmak isterseniz: menu yazımını yalnızca yöneticiye, orders/calls yazımını müşteriye açacak şekilde kısıtlayın ve Firebase Authentication ekleyin."
+  }
+}
