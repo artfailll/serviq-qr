@@ -84,7 +84,7 @@ function firebaseDel(fbPath) {
 // ── QR HTML ──
 function makeHtml(n, svg) {
   return `<!DOCTYPE html>
-<html lang="tr"><head><meta charset="UTF-8"><title>${bizName} · Masa ${n}</title>
+<html lang="tr"><head><meta charset="UTF-8"><meta name="robots" content="noindex,nofollow,noarchive"><title>${bizName} · Masa ${n}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;900&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}

@@ -3,40 +3,195 @@
   publish = "dist"
   functions = "netlify/functions"
 
-# Kök adres = tanıtım sitesi (public/ana-sayfa.dc.html).
-# "200!" zorunlu: index.html dosyası var olduğu için normal redirect çalışmaz.
-# Uygulama rotaları (/menu, /kasa, /garson, /yonetim) etkilenmez.
+# www alan adı Netlify'ye bağlandığında tüm sinyalleri ana domaine birleştirir.
+[[redirects]]
+  from = "https://www.serviq.com.tr/*"
+  to = "https://serviq.com.tr/:splat"
+  status = 301
+  force = true
+
+# Eski fiziksel pazarlama URL'lerini tek kanonik, temiz URL'ye taşı.
+[[redirects]]
+  from = "/ana-sayfa.dc.html"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/ozellikler.dc.html"
+  to = "/ozellikler"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/iletisim.dc.html"
+  to = "/iletisim"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/ozellikler-page.html"
+  to = "/ozellikler"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/iletisim-page.html"
+  to = "/iletisim"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/silivri-qr-menu.html"
+  to = "/silivri-qr-menu"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/istanbul-qr-menu.html"
+  to = "/istanbul-qr-menu"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/qr-menu-nedir.html"
+  to = "/qr-menu-nedir"
+  status = 301
+  force = true
+
+# Pazarlama sayfaları ilk yanıtta tam HTML üretir.
 [[redirects]]
   from = "/"
   to = "/ana-sayfa.dc.html"
   status = 200
   force = true
 
-# SPA fallback — tüm yollar index.html'e gitsin (React Router için)
 [[redirects]]
-  from = "/*"
+  from = "/ozellikler"
+  to = "/ozellikler-page.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/iletisim"
+  to = "/iletisim-page.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/silivri-qr-menu"
+  to = "/silivri-qr-menu.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/istanbul-qr-menu"
+  to = "/istanbul-qr-menu.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/qr-menu-nedir"
+  to = "/qr-menu-nedir.html"
+  status = 200
+  force = true
+
+# Yalnızca gerçek React uygulama rotaları SPA kabuğuna gider.
+# Genel /* fallback yoktur; bilinmeyen yollar Netlify'nin gerçek 404 yanıtını alır.
+[[redirects]]
+  from = "/menu"
   to = "/index.html"
   status = 200
 
-# index.html ASLA önbelleğe alınmasın — müşteri her QR okuttuğunda
-# en güncel sürümü alsın (eski/bozuk sürüm önbellekte kalmasın).
+[[redirects]]
+  from = "/kasa"
+  to = "/staff.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/garson"
+  to = "/staff.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/yonetim"
+  to = "/staff.html"
+  status = 200
+  force = true
+
+# Uygulama kabuğu ve pazarlama HTML'i güncel kalsın.
 [[headers]]
   for = "/index.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
+  for = "/staff.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    X-Robots-Tag = "noindex, nofollow, noarchive"
+
+[[headers]]
   for = "/"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
-# Hash'li dosyalar (içerik değişince adı da değişir) sonsuza dek önbellekte
+[[headers]]
+  for = "/ozellikler"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/iletisim"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/silivri-qr-menu"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/istanbul-qr-menu"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/qr-menu-nedir"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Personel ekranları taranabilir kalır; arama sonuçlarına alınmaz.
+[[headers]]
+  for = "/kasa"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow, noarchive"
+
+[[headers]]
+  for = "/garson"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow, noarchive"
+
+[[headers]]
+  for = "/yonetim"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow, noarchive"
+
+# Yazdırılabilir masa QR kartları arama sonucu değildir.
+[[headers]]
+  for = "/qr-masa-*.html"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow, noarchive"
+
+# Hash'li dosyalar içerik değişince yeni ad alır.
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Service worker & manifest her zaman taze — güncelleme takılmasın
+# Service worker ve manifest güncelleme takılmasın.
 [[headers]]
   for = "/sw.js"
   [headers.values]
@@ -47,8 +202,8 @@
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
-# Tanıtım sayfaları güncellenince anında yansısın
 [[headers]]
-  for = "/*.dc.html"
+  for = "/*"
   [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

@@ -89,7 +89,7 @@ async function writeTables(bizId, count) {
 // ── QR HTML şablonu ──
 function qrHtml(n, svg, bizName) {
   return `<!DOCTYPE html>
-<html lang="tr"><head><meta charset="UTF-8"><title>${bizName} · Masa ${n}</title>
+<html lang="tr"><head><meta charset="UTF-8"><meta name="robots" content="noindex,nofollow,noarchive"><title>${bizName} · Masa ${n}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;900&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
@@ -121,7 +121,7 @@ function qrHtml(n, svg, bizName) {
     <div class="step"><div class="step-num">3</div>Açılan menüden seçim yapın</div>
     <div class="step"><div class="step-num">4</div>Siparişi onaylayın, garson gelir</div>
   </div>
-  <div class="footer">sofraqr.netlify.app · Ödeme kasada yapılır</div>
+  <div class="footer">serviq.com.tr · Ödeme kasada yapılır</div>
 </div></body></html>`
 }
 
