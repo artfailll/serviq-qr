@@ -1,0 +1,34 @@
+# serviq
+
+> serviq, restoran ve kafeler için web tabanlı QR menü ve masadan sipariş sistemidir. Silivri birincil hizmet odağıdır; İstanbul geneli için de ürün ve kullanım bilgileri sunulur.
+
+## Ürün özeti
+
+- Müşteri masadaki QR kodu telefon kamerasıyla okutur.
+- Menü güncel web tarayıcısında açılır; müşterinin uygulama indirmesi, kayıt olması veya üyelik açması gerekmez.
+- Müşteri ürün seçebilir, adet ve sipariş notu ekleyebilir.
+- Sipariş masa bilgisiyle işletmenin kasa ve mutfak akışına iletilir.
+- İşletme tarafında kasa, garson ve yönetim ekranları bulunur.
+- Standart 80 mm termal adisyon yazıcısı desteği vardır.
+- Müşteri arayüzünde Türkçe, İngilizce, Arapça ve Rusça seçenekleri bulunur.
+- serviq online ödeme almaz; ödeme işletmenin kasasında tamamlanır.
+- Canlı menü ve cihazlar arası sipariş iletimi için internet bağlantısı gerekir.
+
+## Birincil sayfalar
+
+- [Ana sayfa](https://serviq.com.tr/): Ürün özeti, çalışma akışı, demo ve ticari bilgiler.
+- [Silivri QR Menü](https://serviq.com.tr/silivri-qr-menu): Silivri'deki yeme-içme işletmeleri için yerel kullanım senaryoları ve kurulum akışı.
+- [İstanbul QR Menü](https://serviq.com.tr/istanbul-qr-menu): İstanbul'daki farklı servis düzenleri için ürün ve operasyon bilgileri.
+- [QR Menü Rehberi](https://serviq.com.tr/qr-menu-nedir): QR menünün tanımı, türleri, internet gereksinimi ve seçim ölçütleri.
+- [Özellikler](https://serviq.com.tr/ozellikler): Müşteri, kasa, garson, yönetim ve yazdırma özellikleri.
+- [Demo ve İletişim](https://serviq.com.tr/iletisim): Canlı demo, WhatsApp, telefon ve e-posta bilgileri.
+
+## İletişim
+
+- Web: https://serviq.com.tr/
+- Telefon ve WhatsApp: +90 501 940 67 04
+- E-posta: yusufhanozdogan07@gmail.com
+
+## Alıntılama notu
+
+Bu dosya, sitedeki herkese açık bilgilerin kısa yönlendirme özetidir. Güncel ve ayrıntılı bilgi için yukarıdaki kanonik HTML sayfaları esas alınmalıdır. Fiyat, fiziksel adres, müşteri sayısı veya sıralama garantisi burada yayımlanmamaktadır.

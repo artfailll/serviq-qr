@@ -63,6 +63,21 @@ Yeni müşteri kurulumu: `node yeni-musteri.cjs "İşletme Adı" isletme-id 20`
 
 ---
 
+## 🔎 SEO ve yerel sayfalar
+
+| Adres | Amaç |
+|---|---|
+| `/silivri-qr-menu` | Silivri odaklı QR menü ve sipariş sistemi |
+| `/istanbul-qr-menu` | İstanbul odaklı restoran operasyonu |
+| `/qr-menu-nedir` | Bilgilendirici QR menü rehberi |
+| `/sitemap.xml` | Arama motoru keşif haritası |
+| `/robots.txt` | Tarama yönergeleri |
+| `/llms.txt` | Ürünün makine-okunur, doğrulanabilir özeti |
+
+Uygulama sonrası Search Console, Bing, Business Profile uygunluğu ve GEO ölçüm adımları için [`SEO-GEO-NOTLARI.md`](./SEO-GEO-NOTLARI.md) dosyasına bakın.
+
+---
+
 ## ✨ Özellikler
 
 ### 📱 Müşteri Ekranı (`/menu?masa=5`)
@@ -100,9 +115,9 @@ npm run dev
 Tarayıcıda açın: **http://localhost:5173**
 
 Açılış sayfasından üç ekrana da geçebilirsiniz. Test için:
-- Müşteri: `http://localhost:5173/menu?masa=5`
-- Kasa: `http://localhost:5173/kasa`
-- Yönetim: `http://localhost:5173/yonetim`
+- Müşteri: `http://localhost:5173/menu?isletme=demo&masa=5`
+- Kasa: `http://localhost:5173/kasa?isletme=demo`
+- Yönetim: `http://localhost:5173/yonetim?isletme=demo`
 
 > 💡 **Demo Mod:** Firebase ayarlamadan da çalışır. Veriler tarayıcıda saklanır ve
 > **aynı tarayıcının sekmeleri arasında anlık senkronlanır**. Hemen denemek için:
@@ -159,15 +174,16 @@ VITE_FIREBASE_APP_ID=...
 
 ## 🔳 QR Kodları Oluşturma
 
-Her masa için şu formatta bir QR üretin (herhangi bir ücretsiz QR aracıyla):
+Her masa için şu formatta bir QR üretin:
 
 ```
-https://SITE-ADRESINIZ.netlify.app/menu?masa=1
-https://SITE-ADRESINIZ.netlify.app/menu?masa=2
+https://serviq.com.tr/menu?isletme=ISLETME-ID&masa=1
+https://serviq.com.tr/menu?isletme=ISLETME-ID&masa=2
 ...
 ```
 
-`?masa=` numarasını değiştirerek her masaya özel kod basabilirsiniz.
+`ISLETME-ID` değerini müşteri kimliğiyle, `masa=` değerini masa numarasıyla değiştirin.
+Yeni müşteri scripti bu bağlantıları ve QR kartlarını otomatik üretir.
 
 ---
 

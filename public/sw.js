@@ -1,10 +1,12 @@
-// Minimal service worker — uygulama kabuğu için ağ öncelikli, çevrimdışı yedekli.
-// Menü/sipariş verisi Firebase'den canlı gelir; SW yalnızca kabuğu hızlandırır.
-const CACHE = 'sofra-v1'
+// Uygulama kabuğu için ağ öncelikli, çevrimdışı yedekli service worker.
+// Pazarlama ve 404 rotalarına dokunmaz; menü/sipariş verisi Firebase'den canlı gelir.
+const CACHE = 'serviq-app-v2'
+const APP_SHELL = '/index.html'
+const APP_ROUTES = new Set(['/menu', '/kasa', '/garson', '/yonetim'])
 
 self.addEventListener('install', (e) => {
   self.skipWaiting()
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/'])))
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll([APP_SHELL])))
 })
 
 self.addEventListener('activate', (e) => {
@@ -20,11 +22,16 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url)
   // Firebase / API / farklı origin isteklerine dokunma
   if (url.origin !== self.location.origin) return
-  // HTML gezinmeleri: ağ öncelikli, çevrimdışıysa cache
+  // Yalnızca gerçek uygulama gezinmeleri: ağ öncelikli, çevrimdışıysa uygulama kabuğu.
   if (req.mode === 'navigate') {
+    if (!APP_ROUTES.has(url.pathname)) return
     e.respondWith(
-      fetch(req).then((r) => { caches.open(CACHE).then((c) => c.put('/', r.clone())); return r })
-        .catch(() => caches.match('/'))
+      fetch(req)
+        .then((r) => {
+          if (r.ok) caches.open(CACHE).then((c) => c.put(APP_SHELL, r.clone()))
+          return r
+        })
+        .catch(() => caches.match(APP_SHELL))
     )
     return
   }
