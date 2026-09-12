@@ -369,7 +369,6 @@ export default function MenuManager() {
                   </div>
                 </div>
               )})}
-              ))}
               {(grouped[cat.id] || []).length === 0 && <p className="p-4 text-sm text-ink-400">Bu kategoride ürün yok.</p>}
             </div>
           </section>
@@ -784,4 +783,3 @@ function Field({ label, children }) {
     </label>
   )
 }
-
