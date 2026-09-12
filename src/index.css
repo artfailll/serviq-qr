@@ -12,6 +12,7 @@
   body {
     @apply bg-ink-50 text-ink-900 font-sans antialiased;
     margin: 0;
+    background-image: radial-gradient(circle at 8% 0%, rgba(249,115,22,.06), transparent 32rem), radial-gradient(circle at 92% 10%, rgba(14,165,233,.045), transparent 28rem);
   }
   /* Daha güzel kaydırma çubuğu (masaüstü panel) */
   ::-webkit-scrollbar {
@@ -24,6 +25,18 @@
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-ink-400;
   }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+@keyframes soft-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
 }
 
 @layer components {

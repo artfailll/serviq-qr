@@ -12,7 +12,7 @@ import { ProductImage, Modal, Toggle } from '../../components/ui'
 import { PRODUCT_TAGS, ALLERGENS } from '../../lib/seed'
 
 const empty = {
-  name: '', desc: '', price: '', image: '', categoryId: '', available: true, featured: false, tags: [],
+  name: '', desc: '', price: '', cost: '', image: '', categoryId: '', available: true, featured: false, tags: [],
   gram: '', kalori: '', allergens: [], alkol: false, domuz: false, icerik: '',
 }
 
@@ -390,6 +390,12 @@ export default function MenuManager() {
               <Field label="Fiyat (₺)">
                 <input type="number" className="inp" value={editing.price} onChange={e => setEditing({ ...editing, price: e.target.value })} placeholder="0" />
               </Field>
+              <Field label="Porsiyon maliyeti (₺)">
+                <input type="number" min="0" step="0.01" className="inp" value={editing.cost ?? ''} onChange={e => setEditing({ ...editing, cost: e.target.value })} placeholder="Stok/reçete maliyeti" />
+              </Field>
+            </div>
+            <p className="text-xs text-ink-400 -mt-2">Maliyet girerseniz ciro ekranında ürün kârı ve brüt kâr marjı hesaplanır.</p>
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Kategori">
                 <select className="inp" value={editing.categoryId} onChange={e => setEditing({ ...editing, categoryId: e.target.value })}>
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}

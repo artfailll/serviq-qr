@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { LayoutGrid, BookOpen, BarChart3, UtensilsCrossed, Monitor, Settings, LogOut, Volume2, VolumeX } from 'lucide-react'
+import { LayoutGrid, BookOpen, BarChart3, UtensilsCrossed, Monitor, Settings, LogOut, Volume2, VolumeX, BrainCircuit } from 'lucide-react'
 import { DemoBadge } from '../components/ui'
 import TableMap from '../components/admin/TableMap'
 import MenuManager from '../components/admin/MenuManager'
 import Stats from '../components/admin/Stats'
 import ProfileEditor from '../components/admin/ProfileEditor'
+import OperationsHub from '../components/admin/OperationsHub'
 import AdminLogin, { useAdminAuthState } from './AdminLogin'
 import { playNewOrder, primeAudio, useSoundPref, setSoundPref } from '../lib/sound'
 
@@ -13,6 +14,7 @@ const TABS = [
   { key: 'tables', label: 'Masa Haritası', icon: LayoutGrid },
   { key: 'menu', label: 'Menü Yönetimi', icon: BookOpen },
   { key: 'stats', label: 'İstatistikler', icon: BarChart3 },
+  { key: 'operations', label: 'İşletme OS', icon: BrainCircuit },
   { key: 'profile', label: 'İşletme Profili', icon: Settings },
 ]
 
@@ -20,6 +22,7 @@ const HEADERS = {
   tables:  { t: 'Masa Haritası',    s: 'Kuş bakışı masa durumu, süre takibi, birleştir & taşı' },
   menu:    { t: 'Menü Yönetimi',    s: 'Ürün ekle, fiyat güncelle, stok durumu' },
   stats:   { t: 'İstatistikler',    s: 'Ciro, en çok satanlar ve gün sonu Z raporu' },
+  operations: { t: 'İşletme OS', s: 'Stok, ekip, müşteri, şube ve akıllı içgörüler' },
   profile: { t: 'İşletme Profili',  s: 'İsim, kapak, logo, renk — müşteri ekranında görünür' },
 }
 
@@ -122,6 +125,7 @@ export default function Admin() {
             {tab === 'tables'  && <TableMap />}
             {tab === 'menu'    && <MenuManager />}
             {tab === 'stats'   && <Stats />}
+            {tab === 'operations' && <OperationsHub />}
             {tab === 'profile' && <ProfileEditor />}
           </div>
         </main>
