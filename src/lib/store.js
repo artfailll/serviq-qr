@@ -57,6 +57,75 @@ export const useProducts = (bizId) =>
   useList(bizId ? p(bizId, 'menu/products') : null,
     (a, b) => (a.order || 0) - (b.order || 0))
 
+// ───────── İşletme OS: stok, ekip, müşteri ve şube ─────────
+// Bu kaynaklar dış entegrasyon gerektirmeden Firebase/demo adaptörlerinin
+// ikisinde de aynı şekilde çalışır. ERP ekranları tek bir veri sözleşmesine
+// bağlanır; ileride satın alma ve e-fatura modülleri bu kayıtlara eklenebilir.
+export const INVENTORY_UNITS = [
+  { key: 'adet', label: 'Adet' }, { key: 'kg', label: 'Kg' }, { key: 'g', label: 'Gram' },
+  { key: 'lt', label: 'Litre' }, { key: 'ml', label: 'Ml' }, { key: 'paket', label: 'Paket' },
+]
+export const STAFF_ROLES = [
+  { key: 'owner', label: 'İşletme sahibi' }, { key: 'manager', label: 'Yönetici' },
+  { key: 'cashier', label: 'Kasa' }, { key: 'waiter', label: 'Garson' }, { key: 'kitchen', label: 'Mutfak' },
+]
+
+export const useInventory = (bizId) =>
+  useList(bizId ? p(bizId, 'inventory/items') : null,
+    (a, b) => (a.name || '').localeCompare(b.name || '', 'tr'))
+export const useStaff = (bizId) =>
+  useList(bizId ? p(bizId, 'staff/members') : null,
+    (a, b) => (a.name || '').localeCompare(b.name || '', 'tr'))
+export const useShifts = (bizId) =>
+  useList(bizId ? p(bizId, 'staff/shifts') : null,
+    (a, b) => (b.startedAt || 0) - (a.startedAt || 0))
+export const useCustomers = (bizId) =>
+  useList(bizId ? p(bizId, 'crm/customers') : null,
+    (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+export const useBranches = (bizId) =>
+  useList(bizId ? p(bizId, 'branches') : null,
+    (a, b) => (a.name || '').localeCompare(b.name || '', 'tr'))
+
+export function addInventoryItem(bizId, item) {
+  const name = String(item.name || '').trim()
+  if (!name) return null
+  return pushItem(p(bizId, 'inventory/items'), {
+    name: name.slice(0, 120), unit: item.unit || 'adet', stock: Math.max(0, Number(item.stock) || 0),
+    minStock: Math.max(0, Number(item.minStock) || 0), cost: Math.max(0, Number(item.cost) || 0),
+    category: String(item.category || 'Genel').slice(0, 80), supplier: String(item.supplier || '').slice(0, 120),
+    updatedAt: now(), createdAt: now(),
+  })
+}
+export const updateInventoryItem = (bizId, id, patch) => updateValue(p(bizId, `inventory/items/${id}`), { ...patch, updatedAt: now() })
+export const removeInventoryItem = (bizId, id) => removeValue(p(bizId, `inventory/items/${id}`))
+export function adjustInventory(bizId, id, delta, reason = 'Manuel stok düzeltmesi') {
+  const amount = Number(delta) || 0
+  if (!amount) return null
+  const key = pushItem(p(bizId, 'inventory/movements'), { itemId: id, delta: amount, reason: String(reason).slice(0, 160), createdAt: now() })
+  return key
+}
+export const addStaffMember = (bizId, member) => {
+  const name = String(member.name || '').trim()
+  if (!name) return null
+  return pushItem(p(bizId, 'staff/members'), { name: name.slice(0, 100), role: member.role || 'waiter', phone: String(member.phone || '').slice(0, 30), active: member.active !== false, createdAt: now(), updatedAt: now() })
+}
+export const updateStaffMember = (bizId, id, patch) => updateValue(p(bizId, `staff/members/${id}`), { ...patch, updatedAt: now() })
+export const removeStaffMember = (bizId, id) => removeValue(p(bizId, `staff/members/${id}`))
+export const startShift = (bizId, staffId, note = '') => pushItem(p(bizId, 'staff/shifts'), { staffId, note: String(note).slice(0, 160), startedAt: now(), status: 'open' })
+export const endShift = (bizId, id) => updateValue(p(bizId, `staff/shifts/${id}`), { status: 'closed', endedAt: now() })
+export const upsertCustomer = (bizId, customer) => {
+  const id = customer.id || pushItem(p(bizId, 'crm/customers'), { name: String(customer.name || '').slice(0, 100), phone: String(customer.phone || '').slice(0, 30), points: Math.max(0, Number(customer.points) || 0), visits: Math.max(0, Number(customer.visits) || 0), spend: Math.max(0, Number(customer.spend) || 0), consent: customer.consent !== false, createdAt: now(), updatedAt: now() })
+  if (customer.id) updateValue(p(bizId, `crm/customers/${customer.id}`), { ...customer, updatedAt: now() })
+  return id
+}
+export const addBranch = (bizId, branch) => {
+  const name = String(branch.name || '').trim()
+  if (!name) return null
+  return pushItem(p(bizId, 'branches'), { name: name.slice(0, 100), address: String(branch.address || '').slice(0, 180), active: branch.active !== false, createdAt: now(), updatedAt: now() })
+}
+export const updateBranch = (bizId, id, patch) => updateValue(p(bizId, `branches/${id}`), { ...patch, updatedAt: now() })
+export const removeBranch = (bizId, id) => removeValue(p(bizId, `branches/${id}`))
+
 export const useTables = (bizId) =>
   useList(bizId ? p(bizId, 'menu/tables') : null,
     (a, b) => (a.no || 0) - (b.no || 0))
@@ -65,6 +134,7 @@ export const useTables = (bizId) =>
 export const addProduct = (bizId, prod) =>
   pushItem(p(bizId, 'menu/products'), {
     name: prod.name, desc: prod.desc || '', price: Number(prod.price) || 0,
+    cost: Math.max(0, Number(prod.cost) || 0),
     image: prod.image || '', categoryId: prod.categoryId,
     available: prod.available !== false, order: prod.order || 99,
     featured: !!prod.featured, tags: prod.tags || [], chef: !!prod.chef,
@@ -104,12 +174,13 @@ export const useOrders = (bizId) =>
   useList(bizId ? p(bizId, 'orders') : null,
     (a, b) => (b.createdAt || 0) - (a.createdAt || 0))
 
-export function createOrder(bizId, { tableId, tableNo, items, note }) {
+export function createOrder(bizId, { tableId, tableNo, items, note, customer }) {
   const total = items.reduce((s, it) => s + it.price * it.qty, 0)
   const count = items.reduce((s, it) => s + it.qty, 0)
   const id = pushItem(p(bizId, 'orders'), {
     tableId, tableNo: tableNo ?? null, items, total, count,
-    note: note || '', status: 'new', createdAt: now(), updatedAt: now(),
+    note: note || '', customer: customer?.name || customer?.phone ? { name: String(customer.name || '').slice(0, 100), phone: String(customer.phone || '').slice(0, 30), consent: customer.consent !== false } : null,
+    status: 'new', createdAt: now(), updatedAt: now(),
   })
   bumpProductStats(bizId, items)
   return id

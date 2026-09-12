@@ -19,6 +19,10 @@ a{color:#0D5C46;text-decoration:none}
 a:hover{color:#0A4735}
 ::selection{background:#DCE9E2}
 @keyframes svIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes svFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes svPulse{0%,100%{box-shadow:0 0 0 0 rgba(13,92,70,.18)}50%{box-shadow:0 0 0 14px rgba(13,92,70,0)}}
+.sv-float{animation:svFloat 5s ease-in-out infinite}.sv-dot{animation:svPulse 2.2s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
 </style>
 </helmet>
 <div style="--vq:#0D5C46;--vq2:#0A4735;--ink:#101315;--mut:#5D6167;--line:rgba(16,19,21,.1);min-height:100vh;overflow-x:hidden">

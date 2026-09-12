@@ -122,6 +122,7 @@ export default function Customer() {
   const [query, setQuery]         = useState('')
   const [trackOpen, setTrackOpen] = useState(false)
   const [cartBump, setCartBump]   = useState(0)
+  const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '', consent: false })
   const catBarRef = useRef(null)
 
   const open = isOpenNow(profile)
@@ -241,7 +242,7 @@ export default function Customer() {
   function confirmOrder() {
     if (!cart.length || !open) return
     const id = createOrder(bizId, { tableId, tableNo: Number(masaNo)||null,
-      items: cart.map(i => ({ productId:i.productId, name:i.name, price:i.price, qty:i.qty, note:i.note||'' })) })
+      items: cart.map(i => ({ productId:i.productId, name:i.name, price:i.price, qty:i.qty, note:i.note||'' })), customer: customerInfo.consent ? customerInfo : null })
     if (id) {
       const next = [id, ...myIds].slice(0, 5)
       setMyIds(next)
@@ -523,6 +524,14 @@ export default function Customer() {
               display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontFamily:B }}>
               <Check size={18} strokeWidth={3}/> {open ? t('confirm') : t('closed')}
             </button>
+            <div style={{ marginTop:14, padding:12, borderRadius:14, background:T.inputBg, border:`1px solid ${T.inputBorder}` }}>
+              <div style={{ color:T.text, fontWeight:800, fontSize:12, marginBottom:8 }}>Sadakat puanı kazan (isteğe bağlı)</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                <input value={customerInfo.name} onChange={e => setCustomerInfo(v => ({ ...v, name:e.target.value }))} placeholder="Ad soyad" style={{ width:'100%', boxSizing:'border-box', borderRadius:10, border:`1px solid ${T.inputBorder}`, background:T.surface, color:T.text, padding:'9px 10px', fontSize:12, outline:'none' }} />
+                <input value={customerInfo.phone} onChange={e => setCustomerInfo(v => ({ ...v, phone:e.target.value }))} placeholder="Telefon" inputMode="tel" style={{ width:'100%', boxSizing:'border-box', borderRadius:10, border:`1px solid ${T.inputBorder}`, background:T.surface, color:T.text, padding:'9px 10px', fontSize:12, outline:'none' }} />
+              </div>
+              <label style={{ display:'flex', alignItems:'center', gap:7, color:T.textMuted, fontSize:11, marginTop:9, cursor:'pointer' }}><input type="checkbox" checked={customerInfo.consent} onChange={e => setCustomerInfo(v => ({ ...v, consent:e.target.checked }))} /> Kampanya ve puan bilgilerini almak istiyorum.</label>
+            </div>
             <p style={{ textAlign:'center', color:T.textFaint, fontSize:11, marginTop:10 }}>{t('payNote')}</p>
           </div>
         </Sheet>
