@@ -1,420 +1,144 @@
 import { useMemo, useState } from 'react'
 import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  AreaChart,
-  Area,
-  PieChart,
-  Pie,
-  Cell,
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
+  PieChart, Pie, Cell,
 } from 'recharts'
 import {
-  CircleDollarSign,
-  ShoppingCart,
-  TrendingUp,
-  Package,
-  FileText,
-  Printer,
-  Trophy,
-  RotateCcw,
-  Wallet,
-  Calendar,
-  Loader2,
+  CircleDollarSign, ShoppingCart, TrendingUp, Package, FileText, Printer,
+  Trophy, RotateCcw, Wallet, Calendar, Loader2, Download, Plus, Search,
+  Trash2, FileSpreadsheet, Receipt,
 } from 'lucide-react'
-import { useOrders, useArchiveAll, resetDay, useBusinessId, useCategories, useProducts, PAYMENT_METHODS } from '../../lib/store'
+import {
+  useOrders, useArchiveAll, resetDay, useBusinessId, useCategories, useProducts,
+  PAYMENT_METHODS, STATUS_LABELS, useExpenses, EXPENSE_CATEGORIES, addExpense,
+  removeExpense,
+} from '../../lib/store'
 import { money, timeOfDay, dateKey } from '../../lib/format'
 import { EmptyState, Modal } from '../../components/ui'
 
-const PIE_COLORS = ['#f97316', '#fb923c', '#fbbf24', '#34d399', '#38bdf8', '#a78bfa', '#f472b6']
-
-// Dönem seçenekleri — 'today' canlı orders'tan, diğerleri arşivden okur.
+const PIE_COLORS = ['#f97316', '#fb923c', '#fbbf24', '#34d399', '#38bdf8', '#a78bfa', '#f472b6', '#14b8a6']
+const PAYMENT_LABELS = Object.fromEntries(PAYMENT_METHODS.map((m) => [m.key, m.label]))
 const RANGES = [
-  { key: 'today', label: 'Bugün' },
-  { key: 'yesterday', label: 'Dün' },
-  { key: 'week', label: 'Bu Hafta' },
-  { key: 'month', label: 'Bu Ay' },
+  { key: 'today', label: 'Bugün' }, { key: 'yesterday', label: 'Dün' },
+  { key: 'week', label: 'Son 7 gün' }, { key: 'month', label: 'Bu ay' },
+  { key: 'quarter', label: 'Son 3 ay' }, { key: 'year', label: 'Bu yıl' },
+  { key: 'custom', label: 'Özel aralık' },
 ]
 
-function rangeBounds(rangeKey) {
-  const now = new Date()
-  const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
-  if (rangeKey === 'today') {
-    return { start: startOfDay(now), end: Date.now() }
-  }
-  if (rangeKey === 'yesterday') {
-    const y = new Date(now); y.setDate(y.getDate() - 1)
-    return { start: startOfDay(y), end: startOfDay(now) - 1 }
-  }
-  if (rangeKey === 'week') {
-    const w = new Date(now); w.setDate(w.getDate() - 6)
-    return { start: startOfDay(w), end: Date.now() }
-  }
-  if (rangeKey === 'month') {
-    const m = new Date(now.getFullYear(), now.getMonth(), 1)
-    return { start: m.getTime(), end: Date.now() }
-  }
-  return { start: startOfDay(now), end: Date.now() }
+function localStart(day) {
+  const [y, m, d] = String(day).split('-').map(Number)
+  return new Date(y, (m || 1) - 1, d || 1).getTime()
+}
+function localEnd(day) { return localStart(day) + 86400000 - 1 }
+function rangeBounds(key, customFrom, customTo) {
+  const today = dateKey(); const todayStart = localStart(today); const now = new Date()
+  if (key === 'custom') { const from = customFrom || today; const to = customTo < from ? from : (customTo || from); return { start: localStart(from), end: localEnd(to) } }
+  if (key === 'today') return { start: todayStart, end: Date.now() }
+  if (key === 'yesterday') { const d = new Date(todayStart); d.setDate(d.getDate() - 1); const day = dateKey(d); return { start: localStart(day), end: localEnd(day) } }
+  if (key === 'week') return { start: todayStart - 6 * 86400000, end: Date.now() }
+  if (key === 'month') return { start: new Date(now.getFullYear(), now.getMonth(), 1).getTime(), end: Date.now() }
+  if (key === 'quarter') return { start: new Date(now.getFullYear(), now.getMonth() - 2, 1).getTime(), end: Date.now() }
+  if (key === 'year') return { start: new Date(now.getFullYear(), 0, 1).getTime(), end: Date.now() }
+  return { start: todayStart, end: Date.now() }
+}
+function orderDate(order) { return Number(order.createdAt || order.updatedAt || 0) }
+function expenseDate(expense) { return Number(expense.date || expense.createdAt || 0) }
+function orderGross(order) { return (order.items || []).reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 0), 0) }
+function orderItems(order) { return (order.items || []).reduce((s, i) => s + (Number(i.qty) || 0), 0) }
+function dateLabel(ts) { return new Date(ts).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }) }
+function shortDate(ts) { return new Date(ts).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }) }
+function pctChange(current, previous) { if (!previous) return current ? 100 : 0; return Math.round(((current - previous) / previous) * 100) }
+function csvCell(value) { return `"${String(value ?? '').replace(/"/g, '""')}"` }
+function downloadCsv(filename, rows) {
+  const csv = '\ufeff' + rows.map((row) => row.map(csvCell).join(';')).join('\r\n')
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(url), 500)
 }
 
 export default function Stats() {
-  const bizId = useBusinessId()
-  const liveOrders = useOrders(bizId)     // henüz arşivlenmemiş (bugünkü + kapatılmamış geçmiş)
-  const archiveAll = useArchiveAll(bizId) // { "2026-06-30": {orderId:{...}}, ... }
-  const categories = useCategories(bizId)
-  const products = useProducts(bizId)
-  const [zOpen, setZOpen] = useState(false)
-  const [range, setRange] = useState('today')
-  const [resetting, setResetting] = useState(false)
+  const bizId = useBusinessId(); const liveOrders = useOrders(bizId); const archiveAll = useArchiveAll(bizId)
+  const expenses = useExpenses(bizId); const categories = useCategories(bizId); const products = useProducts(bizId)
+  const [zOpen, setZOpen] = useState(false); const [expenseOpen, setExpenseOpen] = useState(false)
+  const [range, setRange] = useState('today'); const [customFrom, setCustomFrom] = useState(dateKey()); const [customTo, setCustomTo] = useState(dateKey())
+  const [orderSearch, setOrderSearch] = useState(''); const [statusFilter, setStatusFilter] = useState('all'); const [resetting, setResetting] = useState(false)
+  const [expenseForm, setExpenseForm] = useState({ date: dateKey(), amount: '', category: 'malzeme', vendor: '', note: '', paymentMethod: 'nakit' })
 
-  // Canlı + arşiv verisini birleştir (aynı sipariş asla iki yerde birden olmaz —
-  // resetDay önce arşive yazar, sonra canlıdan siler).
   const allOrders = useMemo(() => {
-    const archived = Object.values(archiveAll).flatMap((dayObj) => Object.values(dayObj || {}))
-    return [...archived, ...liveOrders]
+    const unique = new Map(); const archived = Object.values(archiveAll).flatMap((day) => Object.entries(day || {}).map(([id, order]) => ({ ...order, id: order.id || id })))
+    ;[...archived, ...liveOrders].forEach((o) => unique.set(o.id || `${orderDate(o)}-${o.tableNo}-${o.total}`, o)); return [...unique.values()]
   }, [archiveAll, liveOrders])
+  const bounds = useMemo(() => rangeBounds(range, customFrom, customTo), [range, customFrom, customTo])
+  const previousBounds = useMemo(() => { const n = Math.max(86400000, bounds.end - bounds.start + 1); return { start: bounds.start - n, end: bounds.start - 1 } }, [bounds])
+  const inBounds = (ts, b = bounds) => ts >= b.start && ts <= b.end
+  const periodOrders = useMemo(() => allOrders.filter((o) => inBounds(orderDate(o))), [allOrders, bounds])
+  const paidOrders = useMemo(() => periodOrders.filter((o) => o.status === 'paid'), [periodOrders])
+  const cancelledOrders = useMemo(() => periodOrders.filter((o) => o.status === 'cancelled'), [periodOrders])
+  const periodExpenses = useMemo(() => expenses.filter((e) => inBounds(expenseDate(e))), [expenses, bounds])
+  const previousPaid = useMemo(() => allOrders.filter((o) => o.status === 'paid' && inBounds(orderDate(o), previousBounds)), [allOrders, previousBounds])
+  const previousExpenses = useMemo(() => expenses.filter((e) => inBounds(expenseDate(e), previousBounds)), [expenses, previousBounds])
 
-  const { start, end } = useMemo(() => rangeBounds(range), [range])
-  const periodOrders = useMemo(
-    () => allOrders.filter((o) => o.createdAt >= start && o.createdAt <= end && o.status !== 'cancelled'),
-    [allOrders, start, end]
-  )
-  const donePeriod = periodOrders.filter((o) => o.status === 'paid')
+  const revenue = paidOrders.reduce((s, o) => s + (Number(o.total) || 0), 0); const grossRevenue = paidOrders.reduce((s, o) => s + orderGross(o), 0)
+  const expenseTotal = periodExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0); const profit = revenue - expenseTotal
+  const openTotal = periodOrders.filter((o) => o.status !== 'paid' && o.status !== 'cancelled').reduce((s, o) => s + (Number(o.total) || 0), 0)
+  const previousRevenue = previousPaid.reduce((s, o) => s + (Number(o.total) || 0), 0); const previousExpenseTotal = previousExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+  const itemCount = paidOrders.reduce((s, o) => s + orderItems(o), 0); const averageOrder = paidOrders.length ? revenue / paidOrders.length : 0
 
-  const revenue = donePeriod.reduce((s, o) => s + o.total, 0)
-  const orderCount = periodOrders.length
-  const itemsSold = periodOrders.reduce((s, o) => s + (o.count || o.items.reduce((a, i) => a + i.qty, 0)), 0)
-  const avg = donePeriod.length ? revenue / donePeriod.length : 0
-
-  // En çok satanlar
+  const productCategories = useMemo(() => Object.fromEntries(products.map((p) => [p.name, p.categoryId])), [products])
+  const categoryNames = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c.name])), [categories])
   const bestSellers = useMemo(() => {
-    const tally = {}
-    periodOrders.forEach((o) =>
-      o.items.forEach((it) => {
-        tally[it.name] = tally[it.name] || { name: it.name, qty: 0, revenue: 0 }
-        tally[it.name].qty += it.qty
-        tally[it.name].revenue += it.price * it.qty
-      }),
-    )
-    return Object.values(tally).sort((a, b) => b.qty - a.qty)
-  }, [periodOrders])
-
-  // Bugün/dün: saatlik kırılım. Hafta/ay: günlük kırılım.
-  const isSingleDay = range === 'today' || range === 'yesterday'
-  const trend = useMemo(() => {
-    const buckets = {}
-    donePeriod.forEach((o) => {
-      const key = isSingleDay ? new Date(o.createdAt).getHours() : dateKey(o.createdAt)
-      buckets[key] = (buckets[key] || 0) + o.total
-    })
-    if (isSingleDay) {
-      const hours = Object.keys(buckets).map(Number)
-      if (!hours.length) return []
-      const min = Math.min(...hours)
-      const max = Math.max(...hours)
-      const arr = []
-      for (let h = min; h <= max; h++) arr.push({ label: `${String(h).padStart(2, '0')}:00`, ciro: buckets[h] || 0 })
-      return arr
-    }
-    return Object.entries(buckets)
-      .sort(([a], [b]) => (a < b ? -1 : 1))
-      .map(([d, ciro]) => ({ label: d.slice(5).replace('-', '/'), ciro }))
-  }, [donePeriod, isSingleDay])
-
-  // Ödeme yöntemine göre ciro
+    const tally = {}; paidOrders.forEach((o) => (o.items || []).forEach((i) => { const k = i.name || 'İsimsiz ürün'; tally[k] = tally[k] || { name: k, qty: 0, revenue: 0 }; tally[k].qty += Number(i.qty) || 0; tally[k].revenue += (Number(i.price) || 0) * (Number(i.qty) || 0) }))
+    return Object.values(tally).sort((a, b) => b.revenue - a.revenue)
+  }, [paidOrders])
   const byPayment = useMemo(() => {
-    const tally = {}
-    donePeriod.forEach((o) => {
-      const key = o.paymentMethod || 'nakit'
-      tally[key] = tally[key] || { count: 0, total: 0 }
-      tally[key].count += 1
-      tally[key].total += o.total
-    })
-    return PAYMENT_METHODS
-      .map((m) => ({ key: m.key, label: m.label, ...(tally[m.key] || { count: 0, total: 0 }) }))
-      .filter((m) => m.total > 0)
-      .sort((a, b) => b.total - a.total)
-  }, [donePeriod])
-
-  // Kategori dağılımı (adet)
+    const tally = {}; paidOrders.forEach((o) => { const k = o.paymentMethod || 'nakit'; tally[k] = tally[k] || { count: 0, total: 0 }; tally[k].count += 1; tally[k].total += Number(o.total) || 0 })
+    return PAYMENT_METHODS.map((m) => ({ key: m.key, label: m.label, ...(tally[m.key] || { count: 0, total: 0 }) })).filter((m) => m.total > 0).sort((a, b) => b.total - a.total)
+  }, [paidOrders])
   const byCategory = useMemo(() => {
-    const prodCat = {}
-    products.forEach((p) => (prodCat[p.name] = p.categoryId))
-    const catName = {}
-    categories.forEach((c) => (catName[c.id] = c.name))
-    const tally = {}
-    periodOrders.forEach((o) =>
-      o.items.forEach((it) => {
-        const cid = prodCat[it.name] || 'diger'
-        const name = catName[cid] || 'Diğer'
-        tally[name] = (tally[name] || 0) + it.qty
-      }),
-    )
-    return Object.entries(tally).map(([name, value]) => ({ name, value }))
-  }, [periodOrders, products, categories])
+    const tally = {}; paidOrders.forEach((o) => (o.items || []).forEach((i) => { const k = categoryNames[i.categoryId || productCategories[i.name]] || 'Diğer'; tally[k] = (tally[k] || 0) + (Number(i.price) || 0) * (Number(i.qty) || 0) }))
+    return Object.entries(tally).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
+  }, [paidOrders, productCategories, categoryNames])
+  const expenseByCategory = useMemo(() => {
+    const labels = Object.fromEntries(EXPENSE_CATEGORIES.map((c) => [c.key, c.label])); const tally = {}
+    periodExpenses.forEach((e) => { const k = e.category || 'diger'; tally[k] = (tally[k] || 0) + (Number(e.amount) || 0) })
+    return Object.entries(tally).map(([key, value]) => ({ key, name: labels[key] || 'Diğer', value })).sort((a, b) => b.value - a.value)
+  }, [periodExpenses])
+  const dailyRows = useMemo(() => {
+    const rows = []; const sales = {}; const costs = {}; paidOrders.forEach((o) => { const k = dateKey(orderDate(o)); sales[k] = (sales[k] || 0) + (Number(o.total) || 0) }); periodExpenses.forEach((e) => { const k = dateKey(expenseDate(e)); costs[k] = (costs[k] || 0) + (Number(e.amount) || 0) })
+    const cursor = new Date(bounds.start); cursor.setHours(0, 0, 0, 0); const end = new Date(bounds.end); end.setHours(0, 0, 0, 0); let guard = 0
+    while (cursor <= end && guard++ < 367) { const key = dateKey(cursor); const ciro = sales[key] || 0; const gider = costs[key] || 0; rows.push({ key, label: shortDate(cursor.getTime()), ciro, gider, kar: ciro - gider }); cursor.setDate(cursor.getDate() + 1) }
+    return rows
+  }, [paidOrders, periodExpenses, bounds])
+  const filteredOrders = useMemo(() => {
+    const q = orderSearch.trim().toLocaleLowerCase('tr-TR'); return periodOrders.filter((o) => { const hay = `${o.id || ''} ${o.tableNo || ''} ${(o.items || []).map((i) => i.name).join(' ')}`.toLocaleLowerCase('tr-TR'); return (!q || hay.includes(q)) && (statusFilter === 'all' || o.status === statusFilter) }).sort((a, b) => orderDate(b) - orderDate(a))
+  }, [periodOrders, orderSearch, statusFilter])
+  const rangeLabel = RANGES.find((r) => r.key === range)?.label || 'Seçili dönem'; const revenueDelta = pctChange(revenue, previousRevenue); const profitDelta = pctChange(profit, previousRevenue - previousExpenseTotal)
 
-  const hasData = periodOrders.length > 0
-  const rangeLabel = RANGES.find((r) => r.key === range)?.label || 'Bugün'
+  function exportOrders() { const rows = [['Sipariş ID', 'Tarih', 'Saat', 'Masa', 'Durum', 'Ödeme', 'Ürünler', 'Adet', 'Tutar']]; filteredOrders.forEach((o) => rows.push([o.id || '', dateLabel(orderDate(o)), timeOfDay(orderDate(o)), o.tableNo || '', STATUS_LABELS[o.status] || o.status, PAYMENT_LABELS[o.paymentMethod] || o.paymentMethod || '', (o.items || []).map((i) => `${i.name} x${i.qty}`).join(', '), orderItems(o), Number(o.total) || 0])); downloadCsv(`serviq-siparisler-${dateKey(bounds.start)}-${dateKey(bounds.end)}.csv`, rows) }
+  function exportExpenses() { const labels = Object.fromEntries(EXPENSE_CATEGORIES.map((c) => [c.key, c.label])); const rows = [['Tarih', 'Kategori', 'Tedarikçi', 'Not', 'Ödeme', 'Tutar']]; periodExpenses.forEach((e) => rows.push([dateLabel(expenseDate(e)), labels[e.category] || 'Diğer', e.vendor || '', e.note || '', PAYMENT_LABELS[e.paymentMethod] || e.paymentMethod || '', Number(e.amount) || 0])); downloadCsv(`serviq-giderler-${dateKey(bounds.start)}-${dateKey(bounds.end)}.csv`, rows) }
+  function handleAddExpense(event) { event.preventDefault(); if (!Number(expenseForm.amount)) return; addExpense(bizId, { ...expenseForm, date: localStart(expenseForm.date) }); setExpenseForm({ date: dateKey(), amount: '', category: 'malzeme', vendor: '', note: '', paymentMethod: 'nakit' }); setExpenseOpen(false) }
+  async function handleReset() { if (!confirm('Bugünün siparişleri arşive taşınacak, kasa ve masalar sıfırlanacak.\n\nGeçmiş ciro verileriniz kaybolmaz. Günü kapatmak istediğinize emin misiniz?')) return; setResetting(true); await resetDay(bizId); setResetting(false) }
 
-  async function handleReset() {
-    if (!confirm('Bugünün siparişleri arşive taşınacak, kasa ve masalar sıfırlanacak.\n\nGeçmiş ciro verileriniz kaybolmaz, dönem seçiciden erişebilirsiniz.\n\nGünü kapatmak istediğinize emin misiniz?')) return
-    setResetting(true)
-    await resetDay(bizId)
-    setResetting(false)
-  }
-
-  return (
-    <div>
-      {/* Dönem seçici */}
-      <div className="flex items-center gap-2 mb-5 overflow-x-auto">
-        <Calendar className="h-4 w-4 text-ink-400 shrink-0" />
-        {RANGES.map((r) => (
-          <button
-            key={r.key}
-            onClick={() => setRange(r.key)}
-            className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors cursor-pointer
-              ${range === r.key ? 'bg-brand-500 text-white' : 'bg-ink-100 text-ink-500 hover:bg-ink-200'}`}
-          >
-            {r.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Özet kartlar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <KpiCard icon={CircleDollarSign} label={`${rangeLabel} Ciro`} value={money(revenue)} tone="brand" sub={`${donePeriod.length} tamamlanan`} />
-        <KpiCard icon={ShoppingCart} label="Sipariş Sayısı" value={orderCount} tone="sky" sub={rangeLabel.toLowerCase()} />
-        <KpiCard icon={Package} label="Satılan Ürün" value={itemsSold} tone="amber" sub="adet" />
-        <KpiCard icon={TrendingUp} label="Ort. Sipariş" value={money(avg)} tone="green" sub="sepet tutarı" />
-      </div>
-
-      {!hasData ? (
-        <div className="card">
-          <EmptyState icon={TrendingUp} title={`${rangeLabel} için veri yok`} hint="Siparişler geldikçe grafikler burada canlanacak." />
-        </div>
-      ) : (
-        <>
-          <div className="grid lg:grid-cols-3 gap-4 mb-4">
-            {/* En çok satanlar */}
-            <div className="card p-5 lg:col-span-2">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-display font-bold text-ink-800 flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-brand-500" /> En Çok Satanlar
-                </h3>
-              </div>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={bestSellers.slice(0, 6)} layout="vertical" margin={{ left: 10, right: 20 }}>
-                  <CartesianGrid horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} />
-                  <Tooltip cursor={{ fill: '#fff7ed' }} contentStyle={tooltipStyle} formatter={(v) => [`${v} adet`, 'Satış']} />
-                  <Bar dataKey="qty" fill="#f97316" radius={[0, 6, 6, 0]} barSize={22} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Kategori dağılımı */}
-            <div className="card p-5">
-              <h3 className="font-display font-bold text-ink-800 mb-4">Kategori Dağılımı</h3>
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie data={byCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={3}>
-                    {byCategory.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v, n) => [`${v} adet`, n]} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5">
-                {byCategory.map((c, i) => (
-                  <div key={c.name} className="flex items-center gap-1.5 text-xs">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
-                    <span className="text-ink-600">{c.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Saatlik/Günlük ciro */}
-          <div className="card p-5 mb-6">
-            <h3 className="font-display font-bold text-ink-800 mb-4">{isSingleDay ? 'Saatlik Ciro' : 'Günlük Ciro'}</h3>
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={trend} margin={{ left: 0, right: 10 }}>
-                <defs>
-                  <linearGradient id="ciroFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#f97316" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={50} tickFormatter={(v) => `${v}₺`} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [money(v), 'Ciro']} />
-                <Area type="monotone" dataKey="ciro" stroke="#ea580c" strokeWidth={2.5} fill="url(#ciroFill)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Ödeme yöntemine göre ciro */}
-          <div className="card p-5 mb-6">
-            <h3 className="font-display font-bold text-ink-800 mb-4 flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-brand-500" /> Ödeme Yöntemine Göre Ciro
-            </h3>
-            {byPayment.length === 0 ? (
-              <p className="text-sm text-ink-400 py-2">Bu dönemde kapatılmış hesap yok.</p>
-            ) : (
-              <div className="space-y-3">
-                {byPayment.map((m) => {
-                  const pct = revenue > 0 ? Math.round((m.total / revenue) * 100) : 0
-                  return (
-                    <div key={m.key}>
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="font-semibold text-ink-700">
-                          {m.label} <span className="text-ink-400 font-normal">· {m.count} hesap</span>
-                        </span>
-                        <span className="font-display font-extrabold text-ink-900">
-                          {money(m.total)} <span className="text-ink-400 text-xs font-normal">%{pct}</span>
-                        </span>
-                      </div>
-                      <div className="h-2 rounded-full bg-ink-100 overflow-hidden">
-                        <div className="h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Z Raporu — sadece bugün için anlamlı */}
-      {range === 'today' && (
-        <div className="card p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="grow">
-            <h3 className="font-display font-bold text-ink-800 flex items-center gap-2">
-              <FileText className="h-5 w-5 text-ink-500" /> Gün Sonu Z Raporu
-            </h3>
-            <p className="text-sm text-ink-500 mt-1">Önce Z raporunu al, ardından günü kapat. Veriler silinmez, arşive taşınır — geçmiş dönem seçicisinden görüntülenebilir.</p>
-          </div>
-          <button onClick={() => setZOpen(true)} className="btn-outline">
-            <FileText className="h-4 w-4" /> Z Raporu Al
-          </button>
-          <button onClick={handleReset} disabled={resetting} className="btn bg-red-600 text-white hover:bg-red-700">
-            {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
-            {resetting ? 'Arşivleniyor…' : 'Günü Kapat & Arşivle'}
-          </button>
-        </div>
-      )}
-
-      <ZReport
-        open={zOpen}
-        onClose={() => setZOpen(false)}
-        revenue={revenue}
-        doneCount={donePeriod.length}
-        orderCount={orderCount}
-        itemsSold={itemsSold}
-        avg={avg}
-        bestSellers={bestSellers}
-        byPayment={byPayment}
-      />
-    </div>
-  )
+  return <div className="space-y-5">
+    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3"><div><div className="flex items-center gap-2"><TrendingUp className="h-5 w-5 text-brand-500" /><h2 className="font-display text-xl font-extrabold text-ink-900">Ciro ve Finans Merkezi</h2></div><p className="text-sm text-ink-500 mt-1">Ciro, gider, kâr, kasa ve ürün performansını tek ekrandan takip et.</p></div><div className="flex flex-wrap gap-2"><button onClick={() => setExpenseOpen(true)} className="btn-outline"><Plus className="h-4 w-4" /> Gider ekle</button><button onClick={exportOrders} className="btn-outline"><FileSpreadsheet className="h-4 w-4" /> Sipariş Excel</button><button onClick={exportExpenses} className="btn-outline"><Download className="h-4 w-4" /> Gider Excel</button></div></div>
+    <div className="card p-4 flex flex-col lg:flex-row lg:items-center gap-3"><div className="flex items-center gap-2 text-sm font-semibold text-ink-600"><Calendar className="h-4 w-4 text-brand-500" /> Rapor dönemi</div><div className="flex flex-wrap gap-1.5">{RANGES.map((r) => <button key={r.key} onClick={() => setRange(r.key)} className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors cursor-pointer ${range === r.key ? 'bg-brand-500 text-white' : 'bg-ink-100 text-ink-500 hover:bg-ink-200'}`}>{r.label}</button>)}</div>{range === 'custom' && <div className="flex flex-wrap items-center gap-2 text-sm"><input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="input !w-auto !py-1.5" /><span className="text-ink-400">—</span><input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="input !w-auto !py-1.5" /></div>}<span className="lg:ml-auto text-xs text-ink-400">{dateLabel(rangeBounds(range, customFrom, customTo).start)} — {dateLabel(rangeBounds(range, customFrom, customTo).end)}</span></div>
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3"><KpiCard icon={CircleDollarSign} label="Net ciro" value={money(revenue)} tone="brand" sub={`${paidOrders.length} tahsilat`} delta={revenueDelta} /><KpiCard icon={Receipt} label="Gider" value={money(expenseTotal)} tone="red" sub={`${periodExpenses.length} kayıt`} /><KpiCard icon={TrendingUp} label="Tahmini kâr" value={money(profit)} tone={profit >= 0 ? 'green' : 'red'} sub="net ciro − gider" delta={profitDelta} /><KpiCard icon={ShoppingCart} label="Sipariş" value={periodOrders.length} tone="sky" sub={`${cancelledOrders.length} iptal`} /><KpiCard icon={Package} label="Ürün adedi" value={itemCount} tone="amber" sub="tahsil edilen" /><KpiCard icon={Wallet} label="Açık hesap" value={money(openTotal)} tone="purple" sub="tahsilat bekliyor" /></div>
+    <div className="grid lg:grid-cols-3 gap-4"><div className="card p-5 lg:col-span-2"><div className="flex items-center justify-between mb-3"><div><h3 className="font-display font-bold text-ink-800">Ciro / Gider / Kâr</h3><p className="text-xs text-ink-400 mt-0.5">Seçili dönemin günlük finans akışı</p></div><span className="text-xs font-semibold text-ink-400">Ort. sepet {money(averageOrder)}</span></div>{dailyRows.length ? <ResponsiveContainer width="100%" height={270}><AreaChart data={dailyRows} margin={{ left: 0, right: 12 }}><defs><linearGradient id="erpCiro" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f97316" stopOpacity={0.35} /><stop offset="100%" stopColor="#f97316" stopOpacity={0} /></linearGradient></defs><CartesianGrid vertical={false} stroke="#f1f5f9" /><XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={58} tickFormatter={(v) => `${v}₺`} /><Tooltip contentStyle={tooltipStyle} formatter={(v, name) => [money(v), name === 'ciro' ? 'Ciro' : name === 'gider' ? 'Gider' : 'Kâr']} /><Area type="monotone" dataKey="ciro" stroke="#ea580c" strokeWidth={2.5} fill="url(#erpCiro)" /><Area type="monotone" dataKey="gider" stroke="#ef4444" strokeWidth={2} fill="none" /><Area type="monotone" dataKey="kar" stroke="#16a34a" strokeWidth={2} fill="none" /></AreaChart></ResponsiveContainer> : <EmptyState icon={TrendingUp} title="Bu dönemde hareket yok" hint="Sipariş ve gider girdikçe finans grafiği oluşur." />}</div><div className="card p-5"><h3 className="font-display font-bold text-ink-800">Dönem karşılaştırması</h3><p className="text-xs text-ink-400 mt-1">Bir önceki eşit uzunluktaki dönem</p><div className="mt-5 space-y-4"><CompareRow label="Ciro" value={revenue} previous={previousRevenue} /><CompareRow label="Gider" value={expenseTotal} previous={previousExpenseTotal} expense /><CompareRow label="Kâr" value={profit} previous={previousRevenue - previousExpenseTotal} /></div><div className="mt-5 rounded-2xl bg-ink-100 p-3 text-xs text-ink-500">Kıyaslama, seçtiğin tarih aralığının hemen öncesindeki aynı uzunlukta yapılır.</div></div></div>
+    <div className="grid lg:grid-cols-3 gap-4"><div className="card p-5"><h3 className="font-display font-bold text-ink-800 mb-3">Ödeme dağılımı</h3>{byPayment.length ? <><ResponsiveContainer width="100%" height={190}><PieChart><Pie data={byPayment} dataKey="total" nameKey="label" cx="50%" cy="50%" innerRadius={48} outerRadius={76} paddingAngle={3}>{byPayment.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} formatter={(v) => money(v)} /></PieChart></ResponsiveContainer><MiniBars rows={byPayment.map((x) => ({ name: x.label, value: x.total }))} total={revenue} /></> : <EmptyState icon={Wallet} title="Tahsilat yok" hint="Ödeme yöntemi seçilerek kapatılan hesaplar burada görünür." />}</div><div className="card p-5"><h3 className="font-display font-bold text-ink-800 mb-3">Ürün kategorileri</h3>{byCategory.length ? <><ResponsiveContainer width="100%" height={190}><PieChart><Pie data={byCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={48} outerRadius={76} paddingAngle={3}>{byCategory.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} formatter={(v) => money(v)} /></PieChart></ResponsiveContainer><MiniBars rows={byCategory} total={revenue} /></> : <EmptyState icon={Package} title="Ürün satışı yok" />}</div><div className="card p-5"><h3 className="font-display font-bold text-ink-800 mb-3">Gider kategorileri</h3>{expenseByCategory.length ? <MiniBars rows={expenseByCategory} total={expenseTotal} expense /> : <EmptyState icon={Receipt} title="Gider kaydı yok" hint="Kira, malzeme veya fatura ekleyerek gerçek kârı takip et." />}</div></div>
+    <div className="card p-5"><div className="flex items-center justify-between mb-4"><div><h3 className="font-display font-bold text-ink-800 flex items-center gap-2"><Trophy className="h-5 w-5 text-brand-500" /> Ürün performansı</h3><p className="text-xs text-ink-400 mt-1">Tahsil edilmiş siparişlerde ciroya katkı</p></div><span className="text-xs font-semibold text-ink-400">{bestSellers.length} ürün</span></div>{bestSellers.length ? <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead><tr className="border-b border-ink-100 text-left text-xs text-ink-400"><th className="pb-2 w-8">#</th><th className="pb-2">Ürün</th><th className="pb-2 text-right">Adet</th><th className="pb-2 text-right">Ciro</th><th className="pb-2 text-right">Pay</th></tr></thead><tbody>{bestSellers.slice(0, 15).map((x, i) => <tr key={x.name} className="border-b border-ink-50"><td className="py-2.5 text-ink-400">{i + 1}</td><td className="py-2.5 font-semibold text-ink-700">{x.name}</td><td className="py-2.5 text-right text-ink-600">{x.qty}</td><td className="py-2.5 text-right font-bold text-ink-800">{money(x.revenue)}</td><td className="py-2.5 text-right text-ink-400">{revenue ? `%${Math.round((x.revenue / revenue) * 100)}` : '—'}</td></tr>)}</tbody></table></div> : <EmptyState icon={Trophy} title="Henüz ürün satışı yok" />}</div>
+    <div className="card p-5"><div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4"><div><h3 className="font-display font-bold text-ink-800 flex items-center gap-2"><FileText className="h-5 w-5 text-brand-500" /> Sipariş defteri</h3><p className="text-xs text-ink-400 mt-1">Excel dışa aktarımı seçili dönemdeki tüm satırları içerir.</p></div><div className="flex flex-wrap gap-2"><div className="relative"><Search className="absolute left-2.5 top-2 h-4 w-4 text-ink-400" /><input value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} placeholder="Masa, ürün veya ID" className="input !pl-8 !py-1.5 !w-48" /></div><select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input !w-auto !py-1.5"><option value="all">Tüm durumlar</option><option value="paid">Ödendi</option><option value="served">Servis edildi</option><option value="kitchen">Mutfakta</option><option value="new">Yeni</option><option value="cancelled">İptal</option></select></div></div>{filteredOrders.length ? <div className="overflow-x-auto max-h-[430px]"><table className="w-full min-w-[760px] text-sm"><thead className="sticky top-0 bg-white"><tr className="border-b border-ink-100 text-left text-xs text-ink-400"><th className="py-2">Tarih</th><th className="py-2">Masa</th><th className="py-2">Ürünler</th><th className="py-2">Durum</th><th className="py-2">Ödeme</th><th className="py-2 text-right">Tutar</th></tr></thead><tbody>{filteredOrders.map((o) => <tr key={o.id || `${orderDate(o)}-${o.total}`} className="border-b border-ink-50"><td className="py-2.5 text-ink-500 whitespace-nowrap">{dateLabel(orderDate(o))}<br /><span className="text-xs text-ink-400">{timeOfDay(orderDate(o))}</span></td><td className="py-2.5 font-semibold">{o.tableNo ? `Masa ${o.tableNo}` : 'QR / paket'}</td><td className="py-2.5 text-ink-600 max-w-[280px]">{(o.items || []).map((i) => `${i.name} ×${i.qty}`).join(', ')}</td><td className="py-2.5"><StatusBadge status={o.status} /></td><td className="py-2.5 text-ink-500">{PAYMENT_LABELS[o.paymentMethod] || (o.status === 'paid' ? 'Nakit' : '—')}</td><td className="py-2.5 text-right font-bold">{money(o.total)}</td></tr>)}</tbody></table></div> : <EmptyState icon={FileText} title="Filtreye uyan sipariş yok" />}</div>
+    <div className="grid lg:grid-cols-2 gap-4"><div className="card p-5"><div className="flex items-center justify-between mb-4"><div><h3 className="font-display font-bold text-ink-800 flex items-center gap-2"><Receipt className="h-5 w-5 text-red-500" /> Gider defteri</h3><p className="text-xs text-ink-400 mt-1">Kâr hesabına dahil edilen işletme giderleri.</p></div><button onClick={() => setExpenseOpen(true)} className="btn-primary !py-2 !px-3"><Plus className="h-4 w-4" /> Ekle</button></div>{periodExpenses.length ? <div className="space-y-2 max-h-[360px] overflow-y-auto">{periodExpenses.map((e) => <ExpenseRow key={e.id} expense={e} onRemove={() => removeExpense(bizId, e.id)} />)}</div> : <EmptyState icon={Receipt} title="Bu dönemde gider yok" hint="Kârı doğru görmek için sabit ve değişken giderleri kaydet." />}</div><div className="card p-5"><h3 className="font-display font-bold text-ink-800 mb-3">Finans özeti</h3><div className="space-y-3"><SummaryLine label="Brüt ürün toplamı" value={money(grossRevenue)} /><SummaryLine label="Net tahsilat / ciro" value={money(revenue)} strong /><SummaryLine label="Gider" value={`− ${money(expenseTotal)}`} negative /><div className="border-t border-dashed border-ink-200 pt-3"><SummaryLine label="Tahmini işletme kârı" value={money(profit)} strong negative={profit < 0} /></div><div className="rounded-2xl bg-brand-50 p-3 text-xs text-brand-800">Not: Bu kâr hesabı, sisteme girilen giderler üzerinden tahminidir; vergi, komisyon ve stok maliyeti ayrı girilirse rapor daha doğru olur.</div></div></div></div>
+    {range === 'today' && <div className="card p-5 flex flex-col sm:flex-row sm:items-center gap-4"><div className="grow"><h3 className="font-display font-bold text-ink-800 flex items-center gap-2"><FileText className="h-5 w-5 text-ink-500" /> Gün sonu Z raporu</h3><p className="text-sm text-ink-500 mt-1">Günü kapatmadan önce tahsilat, gider ve kâr özetini yazdır.</p></div><button onClick={() => setZOpen(true)} className="btn-outline"><FileText className="h-4 w-4" /> Z raporu</button><button onClick={handleReset} disabled={resetting} className="btn bg-red-600 text-white hover:bg-red-700">{resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}{resetting ? 'Arşivleniyor…' : 'Günü kapat & arşivle'}</button></div>}
+    <ExpenseModal open={expenseOpen} onClose={() => setExpenseOpen(false)} form={expenseForm} setForm={setExpenseForm} onSubmit={handleAddExpense} /><ZReport open={zOpen} onClose={() => setZOpen(false)} revenue={revenue} expenseTotal={expenseTotal} profit={profit} doneCount={paidOrders.length} orderCount={periodOrders.length} itemsSold={itemCount} avg={averageOrder} bestSellers={bestSellers} byPayment={byPayment} />
+  </div>
 }
 
-const tooltipStyle = {
-  borderRadius: 12,
-  border: '1px solid #e2e8f0',
-  boxShadow: '0 4px 24px -6px rgba(15,23,42,0.12)',
-  fontSize: 13,
-}
-
-function KpiCard({ icon: Icon, label, value, tone, sub }) {
-  const tones = {
-    brand: 'from-brand-500 to-amber-500',
-    sky: 'from-sky-500 to-cyan-500',
-    amber: 'from-amber-500 to-yellow-500',
-    green: 'from-green-500 to-emerald-500',
-  }
-  return (
-    <div className="card p-4 relative overflow-hidden">
-      <div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br ${tones[tone]} opacity-10`} />
-      <div className={`grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br ${tones[tone]} text-white shadow`}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <p className="mt-3 text-sm text-ink-400">{label}</p>
-      <p className="font-display text-2xl font-extrabold text-ink-900">{value}</p>
-      {sub && <p className="text-xs text-ink-400 mt-0.5">{sub}</p>}
-    </div>
-  )
-}
-
-function ZReport({ open, onClose, revenue, doneCount, orderCount, itemsSold, avg, bestSellers, byPayment = [] }) {
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Gün Sonu Z Raporu"
-      footer={
-        <button onClick={() => window.print()} className="btn-primary w-full">
-          <Printer className="h-4 w-4" /> Yazdır
-        </button>
-      }
-    >
-      <div id="z-report" className="space-y-4">
-        <div className="text-center border-b border-dashed border-ink-200 pb-3">
-          <p className="font-display text-xl font-extrabold">serviq</p>
-          <p className="text-sm text-ink-500">Z Raporu · {dateKey()}</p>
-          <p className="text-xs text-ink-400">{timeOfDay(Date.now())} itibarıyla</p>
-        </div>
-        <Row label="Toplam Sipariş" value={orderCount} />
-        <Row label="Tamamlanan Sipariş" value={doneCount} />
-        <Row label="Satılan Ürün Adedi" value={itemsSold} />
-        <Row label="Ortalama Sepet" value={money(avg)} />
-        <div className="border-t border-dashed border-ink-200 pt-3">
-          <p className="text-sm font-semibold text-ink-600 mb-2">En Çok Satanlar</p>
-          <div className="space-y-1.5">
-            {bestSellers.slice(0, 5).map((b, i) => (
-              <div key={b.name} className="flex justify-between text-sm">
-                <span className="text-ink-600">{i + 1}. {b.name} <span className="text-ink-400">×{b.qty}</span></span>
-                <span className="font-semibold">{money(b.revenue)}</span>
-              </div>
-            ))}
-            {bestSellers.length === 0 && <p className="text-sm text-ink-400">Veri yok</p>}
-          </div>
-        </div>
-        <div className="border-t border-dashed border-ink-200 pt-3">
-          <p className="text-sm font-semibold text-ink-600 mb-2">Ödeme Yöntemine Göre</p>
-          <div className="space-y-1.5">
-            {byPayment.map((m) => (
-              <div key={m.key} className="flex justify-between text-sm">
-                <span className="text-ink-600">{m.label} <span className="text-ink-400">×{m.count}</span></span>
-                <span className="font-semibold">{money(m.total)}</span>
-              </div>
-            ))}
-            {byPayment.length === 0 && <p className="text-sm text-ink-400">Kapatılmış hesap yok</p>}
-          </div>
-        </div>
-        <div className="rounded-2xl bg-brand-50 p-4 flex items-center justify-between">
-          <span className="font-display font-bold text-brand-700">TOPLAM CİRO</span>
-          <span className="font-display text-2xl font-extrabold text-brand-700">{money(revenue)}</span>
-        </div>
-      </div>
-    </Modal>
-  )
-}
-
-function Row({ label, value }) {
-  return (
-    <div className="flex justify-between items-center">
-      <span className="text-ink-600">{label}</span>
-      <span className="font-display font-extrabold text-ink-900">{value}</span>
-    </div>
-  )
-}
+const tooltipStyle = { borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 4px 24px -6px rgba(15,23,42,0.12)', fontSize: 13 }
+function KpiCard({ icon: Icon, label, value, tone, sub, delta }) { const tones = { brand: 'from-brand-500 to-amber-500', sky: 'from-sky-500 to-cyan-500', amber: 'from-amber-500 to-yellow-500', green: 'from-green-500 to-emerald-500', red: 'from-red-500 to-rose-500', purple: 'from-violet-500 to-purple-500' }; const positive = delta >= 0; return <div className="card p-4 relative overflow-hidden"><div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br ${tones[tone]} opacity-10`} /><div className={`grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br ${tones[tone]} text-white shadow`}><Icon className="h-5 w-5" /></div><div className="flex items-end justify-between gap-1"><div><p className="mt-3 text-sm text-ink-400">{label}</p><p className="font-display text-xl sm:text-2xl font-extrabold text-ink-900">{value}</p></div>{delta != null && <span className={`text-xs font-bold ${positive ? 'text-green-600' : 'text-red-600'}`}>{positive ? '↑' : '↓'} %{Math.abs(delta)}</span>}</div>{sub && <p className="text-xs text-ink-400 mt-0.5">{sub}</p>}</div> }
+function CompareRow({ label, value, previous, expense }) { const delta = pctChange(value, previous); const up = delta >= 0; return <div><div className="flex justify-between items-center text-sm"><span className="text-ink-600">{label}</span><span className="font-bold text-ink-900">{money(value)}</span></div><div className="flex justify-between items-center mt-1 text-xs"><span className="text-ink-400">Önceki: {money(previous)}</span><span className={expense ? (up ? 'text-red-600' : 'text-green-600') : (up ? 'text-green-600' : 'text-red-600')}>{up ? '↑' : '↓'} %{Math.abs(delta)}</span></div></div> }
+function MiniBars({ rows, total, expense }) { return <div className="space-y-2">{rows.slice(0, 7).map((row, i) => { const pct = total ? Math.round((row.value / total) * 100) : 0; return <div key={row.key || row.name}><div className="flex justify-between text-xs mb-1"><span className="text-ink-600 truncate pr-2">{row.name}</span><span className="font-semibold text-ink-700">{money(row.value)}</span></div><div className="h-1.5 rounded-full bg-ink-100 overflow-hidden"><div className={`h-full rounded-full ${expense ? 'bg-red-400' : 'bg-brand-500'}`} style={{ width: `${pct}%`, backgroundColor: expense ? undefined : PIE_COLORS[i % PIE_COLORS.length] }} /></div></div> })}</div> }
+function StatusBadge({ status }) { const styles = { paid: 'bg-green-100 text-green-700', cancelled: 'bg-red-100 text-red-700', served: 'bg-sky-100 text-sky-700', ready: 'bg-emerald-100 text-emerald-700', kitchen: 'bg-amber-100 text-amber-700', new: 'bg-brand-100 text-brand-700' }; return <span className={`inline-flex rounded-full px-2 py-1 text-[11px] font-bold ${styles[status] || 'bg-ink-100 text-ink-600'}`}>{STATUS_LABELS[status] || status || '—'}</span> }
+function ExpenseRow({ expense, onRemove }) { const label = EXPENSE_CATEGORIES.find((c) => c.key === expense.category)?.label || 'Diğer'; return <div className="flex items-center gap-3 rounded-2xl border border-ink-100 p-3"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-red-50 text-red-500"><Receipt className="h-4 w-4" /></div><div className="min-w-0 grow"><div className="flex items-center justify-between gap-2"><p className="font-semibold text-ink-700 truncate">{expense.note || label}</p><p className="font-bold text-red-600 whitespace-nowrap">− {money(expense.amount)}</p></div><p className="text-xs text-ink-400">{dateLabel(expenseDate(expense))} · {label}{expense.vendor ? ` · ${expense.vendor}` : ''}</p></div><button onClick={onRemove} className="btn-ghost !p-1.5 text-ink-400 hover:text-red-600" title="Gideri sil"><Trash2 className="h-4 w-4" /></button></div> }
+function SummaryLine({ label, value, strong, negative }) { return <div className={`flex justify-between items-center ${strong ? 'text-base' : 'text-sm'}`}><span className={strong ? 'font-bold text-ink-800' : 'text-ink-500'}>{label}</span><span className={`${strong ? 'font-display font-extrabold' : 'font-semibold'} ${negative ? 'text-red-600' : 'text-ink-900'}`}>{value}</span></div> }
+function ExpenseModal({ open, onClose, form, setForm, onSubmit }) { return <Modal open={open} onClose={onClose} title="Gider kaydı ekle" footer={<button onClick={onSubmit} className="btn-primary w-full"><Plus className="h-4 w-4" /> Gideri kaydet</button>}><form onSubmit={onSubmit} className="space-y-3"><div className="grid grid-cols-2 gap-3"><label className="text-sm font-semibold text-ink-600">Tarih<input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="input mt-1" required /></label><label className="text-sm font-semibold text-ink-600">Tutar (₺)<input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="input mt-1" placeholder="0,00" required /></label></div><label className="block text-sm font-semibold text-ink-600">Kategori<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input mt-1">{EXPENSE_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</select></label><label className="block text-sm font-semibold text-ink-600">Tedarikçi / kime ödendi<input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })} className="input mt-1" placeholder="Örn. Toptancı, elektrik şirketi" /></label><label className="block text-sm font-semibold text-ink-600">Not<textarea value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="input mt-1 min-h-20" placeholder="Giderin açıklaması" /></label><label className="block text-sm font-semibold text-ink-600">Ödeme yöntemi<select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })} className="input mt-1">{PAYMENT_METHODS.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}</select></label></form></Modal> }
+function ZReport({ open, onClose, revenue, expenseTotal, profit, doneCount, orderCount, itemsSold, avg, bestSellers, byPayment }) { return <Modal open={open} onClose={onClose} title="Gün Sonu Z Raporu" footer={<button onClick={() => window.print()} className="btn-primary w-full"><Printer className="h-4 w-4" /> Yazdır</button>}><div id="z-report" className="space-y-4"><div className="text-center border-b border-dashed border-ink-200 pb-3"><p className="font-display text-xl font-extrabold">serviq</p><p className="text-sm text-ink-500">Z Raporu · {dateKey()}</p><p className="text-xs text-ink-400">{timeOfDay(Date.now())} itibarıyla</p></div><Row label="Toplam sipariş" value={orderCount} /><Row label="Tamamlanan sipariş" value={doneCount} /><Row label="Satılan ürün" value={itemsSold} /><Row label="Ortalama sepet" value={money(avg)} /><Row label="Net ciro" value={money(revenue)} /><Row label="Gider" value={`− ${money(expenseTotal)}`} /><Row label="Tahmini kâr" value={money(profit)} /><div className="border-t border-dashed border-ink-200 pt-3"><p className="text-sm font-semibold text-ink-600 mb-2">Ödeme yöntemleri</p>{byPayment.map((m) => <div key={m.key} className="flex justify-between text-sm"><span>{m.label} ×{m.count}</span><b>{money(m.total)}</b></div>)}</div><div className="border-t border-dashed border-ink-200 pt-3"><p className="text-sm font-semibold text-ink-600 mb-2">En çok satanlar</p>{bestSellers.slice(0, 5).map((b, i) => <div key={b.name} className="flex justify-between text-sm"><span>{i + 1}. {b.name} ×{b.qty}</span><b>{money(b.revenue)}</b></div>)}</div><div className="rounded-2xl bg-brand-50 p-4 flex items-center justify-between"><span className="font-display font-bold text-brand-700">TAHMİNİ KÂR</span><span className="font-display text-2xl font-extrabold text-brand-700">{money(profit)}</span></div></div></Modal> }
+function Row({ label, value }) { return <div className="flex justify-between items-center"><span className="text-ink-600">{label}</span><span className="font-display font-extrabold text-ink-900">{value}</span></div> }

@@ -171,6 +171,46 @@ export const cancelOrder = (bizId, id) =>
 export const removeOrder = (bizId, id) =>
   removeValue(p(bizId, `orders/${id}`))
 
+// ───────── Finans / gider defteri ─────────
+// Ciro raporunun kâr ve nakit görünümünü tamamlamak için giderler ayrı tutulur.
+// Siparişler gibi işletme bazında izole edilir ve Firebase/demo adaptörlerinin
+// ikisinde de aynı API üzerinden çalışır.
+export const EXPENSE_CATEGORIES = [
+  { key: 'malzeme', label: 'Malzeme / Stok' },
+  { key: 'personel', label: 'Personel' },
+  { key: 'kira', label: 'Kira' },
+  { key: 'fatura', label: 'Fatura / Abonelik' },
+  { key: 'vergi', label: 'Vergi / Resmî' },
+  { key: 'pazarlama', label: 'Pazarlama' },
+  { key: 'bakim', label: 'Bakım / Ekipman' },
+  { key: 'diger', label: 'Diğer' },
+]
+
+export const useExpenses = (bizId) =>
+  useList(bizId ? p(bizId, 'finance/expenses') : null,
+    (a, b) => (b.date || b.createdAt || 0) - (a.date || a.createdAt || 0))
+
+export function addExpense(bizId, expense) {
+  const amount = Math.max(0, Number(expense.amount) || 0)
+  if (!amount) return null
+  return pushItem(p(bizId, 'finance/expenses'), {
+    date: Number(expense.date) || now(),
+    category: expense.category || 'diger',
+    amount,
+    note: String(expense.note || '').slice(0, 240),
+    vendor: String(expense.vendor || '').slice(0, 120),
+    paymentMethod: expense.paymentMethod || 'nakit',
+    createdAt: now(),
+    updatedAt: now(),
+  })
+}
+
+export const updateExpense = (bizId, id, patch) =>
+  updateValue(p(bizId, `finance/expenses/${id}`), { ...patch, updatedAt: now() })
+
+export const removeExpense = (bizId, id) =>
+  removeValue(p(bizId, `finance/expenses/${id}`))
+
 // ───────── Çağrılar ─────────
 export const useCalls = (bizId) =>
   useList(bizId ? p(bizId, 'calls') : null,
