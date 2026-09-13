@@ -73,6 +73,9 @@ export const STAFF_ROLES = [
 export const useInventory = (bizId) =>
   useList(bizId ? p(bizId, 'inventory/items') : null,
     (a, b) => (a.name || '').localeCompare(b.name || '', 'tr'))
+export const useInventoryMovements = (bizId) =>
+  useList(bizId ? p(bizId, 'inventory/movements') : null,
+    (a, b) => (b.createdAt || 0) - (a.createdAt || 0))
 export const useStaff = (bizId) =>
   useList(bizId ? p(bizId, 'staff/members') : null,
     (a, b) => (a.name || '').localeCompare(b.name || '', 'tr'))
