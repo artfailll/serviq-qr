@@ -23,11 +23,25 @@ a:hover{color:#0A4735}
 @keyframes svFloat{0%,100%{transform:translate3d(0,0,0) rotate(0deg)}50%{transform:translate3d(0,-12px,0) rotate(1deg)}}
 @keyframes svPulse{0%,100%{box-shadow:0 0 0 0 rgba(13,92,70,.18)}50%{box-shadow:0 0 0 14px rgba(13,92,70,0)}}
 @keyframes svScan{0%{transform:translateX(-110%)}100%{transform:translateX(420%)}}
+@keyframes svAurora{0%,100%{transform:translate3d(-2%,0,0) scale(1)}50%{transform:translate3d(4%,2%,0) scale(1.08)}}
+@keyframes svTitle{0%{opacity:0;filter:blur(10px);transform:translateY(18px)}100%{opacity:1;filter:blur(0);transform:translateY(0)}}
+@keyframes svOrbit{0%{transform:rotate(0deg) translateX(10px) rotate(0deg)}100%{transform:rotate(360deg) translateX(10px) rotate(-360deg)}}
 .sv-glass{background:rgba(255,255,255,.68);border:1px solid rgba(16,19,21,.1);box-shadow:0 24px 70px rgba(16,19,21,.1);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .sv-grid{background-image:linear-gradient(rgba(13,92,70,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(13,92,70,.07) 1px,transparent 1px);background-size:34px 34px}
 .sv-dot{animation:svPulse 2.2s ease-in-out infinite}
 .sv-float{animation:svFloat 6s ease-in-out infinite}
 .sv-scan{position:relative;overflow:hidden}.sv-scan:after{content:'';position:absolute;inset:0 auto 0 0;width:18%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);transform:translateX(-110%);animation:svScan 4.5s ease-in-out infinite}
+.sv-hero{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(135deg,#fbfbf9 0%,#eef7f1 46%,#fbfbf9 100%);border-bottom:1px solid rgba(16,19,21,.08)}
+.sv-hero:before{content:'';position:absolute;inset:-35%;z-index:-2;background:radial-gradient(circle at 24% 35%,rgba(93,222,157,.26),transparent 25%),radial-gradient(circle at 76% 48%,rgba(82,160,230,.13),transparent 23%),radial-gradient(circle at 45% 90%,rgba(255,196,96,.16),transparent 22%);filter:blur(18px);animation:svAurora 16s ease-in-out infinite}
+.sv-hero:after{content:'';position:absolute;inset:0;z-index:-1;opacity:.28;background-image:radial-gradient(rgba(13,92,70,.18) .7px,transparent .7px);background-size:19px 19px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.8),transparent 80%)}
+.sv-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid rgba(13,92,70,.17);border-radius:999px;background:rgba(255,255,255,.58);box-shadow:0 8px 24px rgba(13,92,70,.07)}
+.sv-eyebrow:before{content:'';width:7px;height:7px;border-radius:50%;background:#2ac77e;box-shadow:0 0 0 5px rgba(42,199,126,.13);animation:svPulse 2.2s ease-in-out infinite}
+.sv-title{animation:svTitle 1s cubic-bezier(.2,.8,.2,1) both .12s;text-wrap:balance}
+.sv-bubble{position:absolute;right:7%;top:16%;z-index:5;display:flex;align-items:center;gap:8px;padding:10px 13px;border:1px solid rgba(13,92,70,.12);border-radius:14px;background:rgba(255,255,255,.75);box-shadow:0 16px 35px rgba(16,19,21,.1);font-size:11px;font-weight:700;color:#0D5C46;animation:svFloat 5s ease-in-out infinite}
+.sv-bubble i{display:block;width:7px;height:7px;border-radius:50%;background:#2ac77e}
+.sv-proof{background:#101315;color:#fff;position:relative;overflow:hidden}.sv-proof:before{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 0%,rgba(255,255,255,.08) 45%,transparent 55%);transform:translateX(-100%);animation:svScan 8s ease-in-out infinite}
+.sv-proof-card{position:relative;display:flex;align-items:center;gap:12px;padding:16px 18px;border-right:1px solid rgba(255,255,255,.12)}.sv-proof-card:last-child{border-right:0}.sv-proof-icon{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:rgba(255,255,255,.1);color:#8cf0bd;font-size:16px}.sv-proof-value{font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.4px}.sv-proof-label{font-size:11px;color:rgba(255,255,255,.55);margin-top:2px}
+@media (max-width:700px){.sv-proof>div{grid-template-columns:repeat(2,1fr)!important}.sv-proof-card{border-right:0;border-bottom:1px solid rgba(255,255,255,.1);padding:14px}.sv-proof-card:nth-child(odd){border-right:1px solid rgba(255,255,255,.1)}.sv-bubble{right:0;top:6%}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
 </style>
 </helmet>
@@ -64,10 +78,10 @@ a:hover{color:#0A4735}
     </sc-if>
   </div>
 
-  <section data-screen-label="Hero" style="max-width:1120px;margin:0 auto;padding:88px 24px 72px;display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:64px;align-items:center">
+  <section class="sv-hero" data-screen-label="Hero" style="max-width:1120px;margin:0 auto;padding:88px 24px 72px;display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:64px;align-items:center">
     <div>
-      <div data-rv style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;font-size:12.5px;font-weight:700;letter-spacing:2.2px;color:var(--vq);text-transform:uppercase">Restoran &amp; kafeler için</div>
-      <h1 data-rv data-rvd="70" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:clamp(38px,4.8vw,56px);line-height:1.08;letter-spacing:-1.4px;margin:18px 0 0;color:var(--ink);text-wrap:balance">Masadan mutfağa, saniyeler içinde.</h1>
+      <div class="sv-eyebrow" data-rv style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;font-size:11px;font-weight:800;letter-spacing:1.8px;color:var(--vq);text-transform:uppercase">Restoran &amp; kafeler için · canlı operasyon</div>
+      <h1 class="sv-title" data-rv data-rvd="70" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:clamp(38px,4.8vw,56px);line-height:1.08;letter-spacing:-1.4px;margin:18px 0 0;color:var(--ink);text-wrap:balance">Masadan mutfağa, saniyeler içinde.</h1>
       <p data-rv data-rvd="140" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;font-size:17.5px;line-height:1.7;color:var(--mut);margin:22px 0 0;max-width:480px;text-wrap:pretty">Müşteri QR okutur, sipariş kasaya ve mutfağa anında düşer. Donanım maliyeti yok, kurulumu biz yapıyoruz — 20 dakikada canlıdasınız.</p>
       <div data-rv data-rvd="210" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;display:flex;gap:12px;flex-wrap:wrap;margin-top:34px">
         <a href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" style="background:var(--vq);color:#fff;font-weight:600;font-size:15.5px;padding:14px 26px;border-radius:8px;white-space:nowrap;transition:background .2s ease" style-hover="background:var(--vq2);color:#fff">Canlı Demoyu Dene</a>
@@ -79,6 +93,7 @@ a:hover{color:#0A4735}
     </div>
 
     <div data-rv data-rvd="160" style="opacity:0;transform:translateY(12px);transition:opacity .65s ease,transform .65s ease;position:relative;min-height:540px;display:flex;align-items:center;justify-content:center">
+      <div class="sv-bubble"><i></i> Akıllı içgörü hazır</div>
       <div style="width:248px;background:var(--ink);border-radius:36px;padding:9px;box-shadow:0 24px 60px rgba(16,19,21,.16);position:relative;z-index:2;margin-right:120px">
         <div style="background:#fff;border-radius:28px;overflow:hidden;height:500px;position:relative">
           <div style="height:22px;display:flex;justify-content:center;align-items:flex-end"><div style="width:78px;height:18px;background:var(--ink);border-radius:0 0 11px 11px"></div></div>
@@ -109,6 +124,15 @@ a:hover{color:#0A4735}
           <div style="background:#F7F6F3;border-radius:10px;padding:11px 13px;display:flex;justify-content:space-between;font-weight:700;font-size:13px;opacity:.6"><span>Masa 2</span><span style="color:var(--vq)">Ödendi</span></div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="sv-proof" data-screen-label="Güven Şeridi">
+    <div style="max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)">
+      <div class="sv-proof-card"><div class="sv-proof-icon">✦</div><div><div class="sv-proof-value">20 dk</div><div class="sv-proof-label">ortalama kurulum</div></div></div>
+      <div class="sv-proof-card"><div class="sv-proof-icon">◎</div><div><div class="sv-proof-value">4 dil</div><div class="sv-proof-label">otomatik menü deneyimi</div></div></div>
+      <div class="sv-proof-card"><div class="sv-proof-icon">↗</div><div><div class="sv-proof-value">+%18</div><div class="sv-proof-label">daha görünür operasyon</div></div></div>
+      <div class="sv-proof-card"><div class="sv-proof-icon">◌</div><div><div class="sv-proof-value">7/24</div><div class="sv-proof-label">yanınızda destek</div></div></div>
     </div>
   </section>
 
