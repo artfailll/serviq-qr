@@ -5,9 +5,9 @@ import {
   AlertTriangle, TrendingUp, WalletCards, BrainCircuit,
 } from 'lucide-react'
 import {
-  useBusinessId, useInventory, useStaff, useShifts, useCustomers, useBranches,
-  useOrders, useProducts, INVENTORY_UNITS, STAFF_ROLES,
-  addInventoryItem, updateInventoryItem, removeInventoryItem,
+  useBusinessId, useInventory, useInventoryMovements, useStaff, useShifts, useCustomers, useBranches,
+  useOrders, useArchiveAll, useProducts, INVENTORY_UNITS, STAFF_ROLES,
+  addInventoryItem, updateInventoryItem, removeInventoryItem, adjustInventory,
   addStaffMember, updateStaffMember, removeStaffMember, startShift, endShift,
   upsertCustomer, addBranch, updateBranch, removeBranch,
 } from '../../lib/store'
@@ -22,9 +22,25 @@ const TABS = [
   { key: 'insights', label: 'Akıllı İçgörüler', icon: Sparkles },
 ]
 
+const DATE_RANGES = [
+  { key: 'today', label: 'Bugün' }, { key: 'yesterday', label: 'Dün' },
+  { key: 'week', label: 'Son 7 gün' }, { key: 'month', label: 'Bu ay' }, { key: 'custom', label: 'Özel tarih' },
+]
+function localStart(day) { const [y, m, d] = String(day).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1).getTime() }
+function localEnd(day) { return localStart(day) + 86400000 - 1 }
+function periodBounds(key, from, to) {
+  const today = dateKey(); const start = localStart(today); const now = new Date()
+  if (key === 'custom') { const a = from || today; const b = to && to >= a ? to : a; return { start: localStart(a), end: localEnd(b), label: `${a} — ${b}` } }
+  if (key === 'yesterday') { const d = new Date(start); d.setDate(d.getDate() - 1); const day = dateKey(d); return { start: localStart(day), end: localEnd(day), label: day } }
+  if (key === 'week') return { start: start - 6 * 86400000, end: Date.now(), label: 'Son 7 gün' }
+  if (key === 'month') return { start: new Date(now.getFullYear(), now.getMonth(), 1).getTime(), end: Date.now(), label: 'Bu ay' }
+  return { start, end: Date.now(), label: today }
+}
+
 export default function OperationsHub() {
-  const [tab, setTab] = useState('stock')
+  const [tab, setTab] = useState('stock'); const [range, setRange] = useState('today'); const [customFrom, setCustomFrom] = useState(dateKey()); const [customTo, setCustomTo] = useState(dateKey())
   const bizId = useBusinessId()
+  const bounds = useMemo(() => periodBounds(range, customFrom, customTo), [range, customFrom, customTo])
   return <div className="space-y-5 animate-[fade-up_.35s_ease-out]">
     <div className="relative overflow-hidden rounded-3xl bg-ink-900 p-6 sm:p-8 text-white shadow-xl">
       <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-brand-500/25 blur-3xl animate-pulse" />
@@ -34,40 +50,51 @@ export default function OperationsHub() {
         <div className="grid grid-cols-3 gap-2 text-center text-xs"><div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3"><Boxes className="mx-auto mb-1 h-4 w-4 text-brand-300" /><span>Stok</span></div><div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3"><UsersRound className="mx-auto mb-1 h-4 w-4 text-sky-300" /><span>Ekip</span></div><div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3"><Sparkles className="mx-auto mb-1 h-4 w-4 text-amber-300" /><span>İçgörü</span></div></div>
       </div>
     </div>
+    <DateFilter range={range} setRange={setRange} customFrom={customFrom} customTo={customTo} setCustomFrom={setCustomFrom} setCustomTo={setCustomTo} label={bounds.label} />
     <div className="flex gap-1 overflow-x-auto rounded-2xl border border-ink-100 bg-white p-1.5 shadow-soft">{TABS.map((item) => { const Icon = item.icon; return <button key={item.key} onClick={() => setTab(item.key)} className={`flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold transition-all ${tab === item.key ? 'bg-brand-500 text-white shadow-glow' : 'text-ink-500 hover:bg-ink-50 hover:text-ink-800'}`}><Icon className="h-4 w-4" />{item.label}</button> })}</div>
-    {tab === 'stock' && <StockPanel bizId={bizId} />}
-    {tab === 'team' && <TeamPanel bizId={bizId} />}
-    {tab === 'crm' && <CustomerPanel bizId={bizId} />}
+    {tab === 'stock' && <StockPanel bizId={bizId} bounds={bounds} />}
+    {tab === 'team' && <TeamPanel bizId={bizId} bounds={bounds} />}
+    {tab === 'crm' && <CustomerPanel bizId={bizId} bounds={bounds} />}
     {tab === 'branches' && <BranchPanel bizId={bizId} />}
-    {tab === 'insights' && <InsightsPanel bizId={bizId} />}
+    {tab === 'insights' && <InsightsPanel bizId={bizId} bounds={bounds} />}
   </div>
 }
 
-function StockPanel({ bizId }) {
-  const items = useInventory(bizId); const [open, setOpen] = useState(false); const [q, setQ] = useState('');
+function DateFilter({ range, setRange, customFrom, customTo, setCustomFrom, setCustomTo, label }) { return <div className="card flex flex-col lg:flex-row lg:items-center gap-3 p-3"><div className="flex items-center gap-2 text-sm font-bold text-ink-600"><Clock3 className="h-4 w-4 text-brand-500" /> Rapor tarihi</div><div className="flex flex-wrap gap-1.5">{DATE_RANGES.map((item) => <button key={item.key} onClick={() => setRange(item.key)} className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${range === item.key ? 'bg-brand-500 text-white' : 'bg-ink-100 text-ink-500 hover:bg-ink-200'}`}>{item.label}</button>)}</div>{range === 'custom' && <div className="flex items-center gap-2"><input type="date" className="input !w-auto !py-1.5" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} /><span className="text-ink-400">—</span><input type="date" className="input !w-auto !py-1.5" value={customTo} onChange={(e) => setCustomTo(e.target.value)} /></div>}<span className="lg:ml-auto text-xs font-semibold text-ink-400">{label}</span></div> }
+
+function useHistoricalOrders(bizId) {
+  const live = useOrders(bizId); const archive = useArchiveAll(bizId)
+  return useMemo(() => { const map = new Map(); const old = Object.values(archive).flatMap((day) => Object.entries(day || {}).map(([id, order]) => ({ ...order, id: order.id || id }))); [...old, ...live].forEach((order) => map.set(order.id, order)); return [...map.values()] }, [live, archive])
+}
+
+function StockPanel({ bizId, bounds }) {
+  const items = useInventory(bizId); const movements = useInventoryMovements(bizId); const [open, setOpen] = useState(false); const [q, setQ] = useState('');
   const [form, setForm] = useState({ name: '', unit: 'adet', stock: '', minStock: '', cost: '', category: '', supplier: '' })
   const filtered = items.filter((x) => `${x.name} ${x.category} ${x.supplier}`.toLocaleLowerCase('tr-TR').includes(q.toLocaleLowerCase('tr-TR')))
   const low = items.filter((x) => Number(x.stock) <= Number(x.minStock) && Number(x.minStock) > 0)
   function save(e) { e.preventDefault(); addInventoryItem(bizId, form); setForm({ name: '', unit: 'adet', stock: '', minStock: '', cost: '', category: '', supplier: '' }); setOpen(false) }
-  function adjust(item, delta) { updateInventoryItem(bizId, item.id, { stock: Math.max(0, (Number(item.stock) || 0) + delta) }) }
+  const periodMovements = movements.filter((x) => x.createdAt >= bounds.start && x.createdAt <= bounds.end)
+  function adjust(item, delta) { updateInventoryItem(bizId, item.id, { stock: Math.max(0, (Number(item.stock) || 0) + delta) }); adjustInventory(bizId, item.id, delta, delta > 0 ? 'Stok girişi' : 'Stok çıkışı') }
   return <div className="space-y-4">
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3"><Metric icon={Boxes} label="Stok kalemi" value={items.length} tone="brand" /><Metric icon={AlertTriangle} label="Kritik stok" value={low.length} tone={low.length ? 'red' : 'green'} /><Metric icon={WalletCards} label="Stok değeri" value={money(items.reduce((s, x) => s + (Number(x.stock) || 0) * (Number(x.cost) || 0), 0))} tone="amber" /><Metric icon={TrendingUp} label="Maliyet girilmiş" value={`%${items.length ? Math.round(items.filter((x) => Number(x.cost) > 0).length / items.length * 100) : 0}`} tone="sky" /></div>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3"><Metric icon={Boxes} label="Stok kalemi" value={items.length} tone="brand" /><Metric icon={AlertTriangle} label="Kritik stok" value={low.length} tone={low.length ? 'red' : 'green'} /><Metric icon={WalletCards} label="Stok değeri" value={money(items.reduce((s, x) => s + (Number(x.stock) || 0) * (Number(x.cost) || 0), 0))} tone="amber" /><Metric icon={TrendingUp} label="Dönem hareketi" value={periodMovements.length} tone="sky" /></div>
     <div className="card overflow-hidden"><div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-ink-100 p-4"><div><h3 className="font-display font-bold text-ink-800">Stok ve maliyet kartları</h3><p className="text-xs text-ink-400 mt-1">Maliyetleri ürün ekranındaki porsiyon maliyetine bağlayın.</p></div><div className="flex gap-2"><div className="relative"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-ink-400" /><input className="inp !w-44 !py-2 !pl-8" placeholder="Stok ara" value={q} onChange={(e) => setQ(e.target.value)} /></div><button className="btn-primary !py-2" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Yeni stok</button></div></div>{filtered.length ? <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead><tr className="border-b border-ink-100 text-left text-xs text-ink-400"><th className="p-4">Malzeme</th><th className="p-4">Kategori / tedarikçi</th><th className="p-4 text-right">Stok</th><th className="p-4 text-right">Birim maliyet</th><th className="p-4 text-right">Değer</th><th className="p-4 text-right">İşlem</th></tr></thead><tbody>{filtered.map((item) => { const isLow = Number(item.stock) <= Number(item.minStock) && Number(item.minStock) > 0; return <tr key={item.id} className="border-b border-ink-50 hover:bg-ink-50/60"><td className="p-4"><div className="font-semibold text-ink-800">{item.name}</div><span className="text-xs text-ink-400">Min. {item.minStock || 0} {item.unit}</span></td><td className="p-4 text-ink-500">{item.category || 'Genel'}<br /><span className="text-xs text-ink-400">{item.supplier || 'Tedarikçi yok'}</span></td><td className={`p-4 text-right font-bold ${isLow ? 'text-red-600' : 'text-ink-800'}`}>{item.stock || 0} {item.unit}{isLow && <AlertTriangle className="ml-1 inline h-3.5 w-3.5" />}</td><td className="p-4 text-right text-ink-600">{money(item.cost)}</td><td className="p-4 text-right font-bold">{money((Number(item.stock) || 0) * (Number(item.cost) || 0))}</td><td className="p-4"><div className="flex justify-end gap-1"><button className="btn-ghost !h-8 !w-8 !p-0" title="Stok azalt" onClick={() => adjust(item, -1)}><ArrowDownToLine className="h-4 w-4" /></button><button className="btn-ghost !h-8 !w-8 !p-0" title="Stok artır" onClick={() => adjust(item, 1)}><ArrowUpFromLine className="h-4 w-4" /></button><button className="btn-ghost !h-8 !w-8 !p-0 text-red-500" title="Sil" onClick={() => removeInventoryItem(bizId, item.id)}><Trash2 className="h-4 w-4" /></button></div></td></tr> })}</tbody></table></div> : <EmptyState icon={Boxes} title="Henüz stok kartı yok" hint="İlk malzemenizi ekleyerek gerçek maliyet takibini başlatın." />}</div>
+    {periodMovements.length > 0 && <div className="card p-5"><h3 className="font-display font-bold text-ink-800">Stok hareketleri</h3><p className="mt-1 text-xs text-ink-400">Seçili tarih aralığındaki giriş ve çıkışlar</p><div className="mt-4 grid md:grid-cols-2 gap-2">{periodMovements.slice(0, 12).map((move) => { const item = items.find((x) => x.id === move.itemId); return <div key={move.id} className="flex items-center justify-between rounded-xl border border-ink-100 p-3 text-sm"><span className="text-ink-600">{item?.name || 'Silinmiş stok'}<span className="ml-2 text-xs text-ink-400">{dateKey(move.createdAt)} · {timeOfDay(move.createdAt)}</span></span><span className={`font-bold ${move.delta > 0 ? 'text-green-600' : 'text-red-600'}`}>{move.delta > 0 ? '+' : ''}{move.delta} {item?.unit || ''}</span></div> })}</div></div>}
     <Modal open={open} onClose={() => setOpen(false)} title="Yeni stok kartı" footer={<button form="stock-form" className="btn-primary w-full">Stok kartını kaydet</button>}><form id="stock-form" onSubmit={save} className="space-y-3"><div className="grid grid-cols-2 gap-3"><Field label="Malzeme adı"><input className="inp mt-1" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Örn. Kaşar peyniri" /></Field><Field label="Birim"><select className="inp mt-1" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}>{INVENTORY_UNITS.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}</select></Field><Field label="Mevcut stok"><input type="number" min="0" className="inp mt-1" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></Field><Field label="Kritik seviye"><input type="number" min="0" className="inp mt-1" value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} /></Field><Field label="Birim maliyet (₺)"><input type="number" min="0" step="0.01" className="inp mt-1" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} /></Field><Field label="Kategori"><input className="inp mt-1" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Süt ürünleri" /></Field></div><Field label="Tedarikçi"><input className="inp mt-1" value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} /></Field></form></Modal>
   </div>
 }
 
-function TeamPanel({ bizId }) {
+function TeamPanel({ bizId, bounds }) {
   const members = useStaff(bizId); const shifts = useShifts(bizId); const [open, setOpen] = useState(false); const [form, setForm] = useState({ name: '', role: 'waiter', phone: '' });
   function save(e) { e.preventDefault(); addStaffMember(bizId, form); setForm({ name: '', role: 'waiter', phone: '' }); setOpen(false) }
   const roleName = (key) => STAFF_ROLES.find((x) => x.key === key)?.label || key
-  const openShifts = shifts.filter((x) => x.status === 'open')
+  const openShifts = shifts.filter((x) => x.status === 'open' && x.startedAt >= bounds.start && x.startedAt <= bounds.end)
   return <div className="space-y-4"><div className="grid grid-cols-2 lg:grid-cols-4 gap-3"><Metric icon={UsersRound} label="Ekip" value={members.length} tone="sky" /><Metric icon={Clock3} label="Açık vardiya" value={openShifts.length} tone="green" /><Metric icon={CheckCircle2} label="Aktif personel" value={members.filter((x) => x.active !== false).length} tone="brand" /><Metric icon={WalletCards} label="Yetki modeli" value="5 rol" tone="purple" /></div><div className="card p-5"><div className="mb-4 flex items-center justify-between"><div><h3 className="font-display font-bold text-ink-800">Ekip ve vardiya kontrolü</h3><p className="text-xs text-ink-400 mt-1">Kim çalışıyor, hangi rolde, vardiyası açık mı tek bakışta görün.</p></div><button className="btn-primary !py-2" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Personel ekle</button></div>{members.length ? <div className="grid md:grid-cols-2 gap-3">{members.map((m) => { const activeShift = openShifts.find((s) => s.staffId === m.id); return <div key={m.id} className="rounded-2xl border border-ink-100 p-4 transition-all hover:-translate-y-0.5 hover:shadow-soft"><div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-600 font-bold">{m.name?.slice(0, 1).toUpperCase()}</div><div><p className="font-bold text-ink-800">{m.name}</p><p className="text-xs text-ink-400">{roleName(m.role)}{m.phone ? ` · ${m.phone}` : ''}</p></div></div><button className="btn-ghost !h-8 !w-8 !p-0 text-red-500" onClick={() => removeStaffMember(bizId, m.id)}><Trash2 className="h-4 w-4" /></button></div><div className="mt-4 flex items-center justify-between"><span className={`chip ${activeShift ? 'bg-green-100 text-green-700' : 'bg-ink-100 text-ink-500'}`}>{activeShift ? '● Vardiyada' : 'Vardiya kapalı'}</span>{activeShift ? <button className="text-xs font-bold text-red-600" onClick={() => endShift(bizId, activeShift.id)}>Vardiyayı kapat</button> : <button className="text-xs font-bold text-brand-600" onClick={() => startShift(bizId, m.id)}>Vardiya başlat</button>}</div></div> })}</div> : <EmptyState icon={UsersRound} title="Ekip kaydı yok" hint="Personel ekleyerek vardiya ve rol yönetimini başlatın." />}</div><Modal open={open} onClose={() => setOpen(false)} title="Personel ekle" footer={<button form="staff-form" className="btn-primary w-full">Personeli kaydet</button>}><form id="staff-form" onSubmit={save} className="space-y-3"><Field label="Ad soyad"><input required className="inp mt-1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field><Field label="Rol"><select className="inp mt-1" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>{STAFF_ROLES.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}</select></Field><Field label="Telefon"><input className="inp mt-1" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field></form></Modal></div>
 }
 
 function CustomerPanel({ bizId }) {
-  const savedCustomers = useCustomers(bizId); const orders = useOrders(bizId); const [open, setOpen] = useState(false); const [form, setForm] = useState({ name: '', phone: '', points: 0 });
-  const orderCustomers = useMemo(() => { const map = {}; orders.filter((o) => o.customer?.consent && (o.customer.name || o.customer.phone)).forEach((o) => { const key = o.customer.phone || o.customer.name; const current = map[key] || { id: `order-${key}`, name: o.customer.name, phone: o.customer.phone, points: 0, visits: 0, spend: 0 }; current.visits += 1; current.spend += Number(o.total) || 0; current.points += Math.floor((Number(o.total) || 0) / 10); map[key] = current }); return Object.values(map) }, [orders])
+  const savedCustomers = useCustomers(bizId); const orders = useHistoricalOrders(bizId); const [open, setOpen] = useState(false); const [form, setForm] = useState({ name: '', phone: '', points: 0 });
+  const periodOrders = orders.filter((o) => o.createdAt >= bounds.start && o.createdAt <= bounds.end)
+  const orderCustomers = useMemo(() => { const map = {}; periodOrders.filter((o) => o.customer?.consent && (o.customer.name || o.customer.phone)).forEach((o) => { const key = o.customer.phone || o.customer.name; const current = map[key] || { id: `order-${key}`, name: o.customer.name, phone: o.customer.phone, points: 0, visits: 0, spend: 0 }; current.visits += 1; current.spend += Number(o.total) || 0; current.points += Math.floor((Number(o.total) || 0) / 10); map[key] = current }); return Object.values(map) }, [periodOrders])
   const customers = useMemo(() => { const map = Object.fromEntries(savedCustomers.map((x) => [x.phone || x.name || x.id, x])); orderCustomers.forEach((x) => { const key = x.phone || x.name; map[key] = map[key] ? { ...map[key], visits: (map[key].visits || 0) + x.visits, spend: (map[key].spend || 0) + x.spend, points: (map[key].points || 0) + x.points } : x }); return Object.values(map).sort((a, b) => (b.spend || 0) - (a.spend || 0)) }, [savedCustomers, orderCustomers])
   const totalSpend = customers.reduce((s, x) => s + (Number(x.spend) || 0), 0); const top = [...customers].sort((a, b) => (b.spend || 0) - (a.spend || 0))[0]
   function save(e) { e.preventDefault(); upsertCustomer(bizId, form); setForm({ name: '', phone: '', points: 0 }); setOpen(false) }
@@ -80,9 +107,10 @@ function BranchPanel({ bizId }) {
   return <div className="space-y-4"><div className="card p-5"><div className="mb-4 flex items-center justify-between"><div><h3 className="font-display font-bold text-ink-800">Şube merkezi</h3><p className="text-xs text-ink-400 mt-1">Şube altyapısı hazır; ileride tek menüden tüm noktaları yönetebilirsiniz.</p></div><button className="btn-primary !py-2" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Şube ekle</button></div>{branches.length ? <div className="grid md:grid-cols-2 gap-3">{branches.map((b) => <div key={b.id} className="flex items-center justify-between rounded-2xl border border-ink-100 p-4"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-sky-50 text-sky-600"><Building2 className="h-5 w-5" /></div><div><p className="font-bold text-ink-800">{b.name}</p><p className="text-xs text-ink-400">{b.address || 'Adres eklenmedi'}</p></div></div><button className="btn-ghost !h-8 !w-8 !p-0 text-red-500" onClick={() => removeBranch(bizId, b.id)}><Trash2 className="h-4 w-4" /></button></div>)}</div> : <EmptyState icon={Building2} title="Tek işletme modu" hint="Şube ekleyerek raporları ve operasyonu lokasyon bazına ayırabilirsiniz." />}</div><Modal open={open} onClose={() => setOpen(false)} title="Şube ekle" footer={<button form="branch-form" className="btn-primary w-full">Şubeyi kaydet</button>}><form id="branch-form" onSubmit={save} className="space-y-3"><Field label="Şube adı"><input required className="inp mt-1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Örn. Merkez" /></Field><Field label="Adres"><textarea className="inp mt-1 min-h-24" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field></form></Modal></div>
 }
 
-function InsightsPanel({ bizId }) {
-  const orders = useOrders(bizId); const products = useProducts(bizId); const inventory = useInventory(bizId); const [pulse, setPulse] = useState(false)
-  const paid = orders.filter((x) => x.status === 'paid'); const revenue = paid.reduce((s, x) => s + (Number(x.total) || 0), 0)
+function InsightsPanel({ bizId, bounds }) {
+  const orders = useHistoricalOrders(bizId); const products = useProducts(bizId); const inventory = useInventory(bizId); const [pulse, setPulse] = useState(false)
+  const periodOrders = orders.filter((x) => x.createdAt >= bounds.start && x.createdAt <= bounds.end)
+  const paid = periodOrders.filter((x) => x.status === 'paid'); const revenue = paid.reduce((s, x) => s + (Number(x.total) || 0), 0)
   const top = useMemo(() => { const map = {}; paid.forEach((o) => (o.items || []).forEach((i) => { map[i.name] = (map[i.name] || 0) + (Number(i.qty) || 0) })); return Object.entries(map).sort((a, b) => b[1] - a[1])[0] }, [paid])
   const peak = useMemo(() => { const map = {}; paid.forEach((x) => { const h = new Date(x.createdAt || 0).getHours(); map[h] = (map[h] || 0) + 1 }); return Object.entries(map).sort((a, b) => b[1] - a[1])[0] }, [paid])
   const low = inventory.filter((x) => Number(x.minStock) > 0 && Number(x.stock) <= Number(x.minStock))
