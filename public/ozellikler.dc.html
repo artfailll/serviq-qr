@@ -1,250 +1,39 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="tr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="./support.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071110">
+  <link rel="icon" href="/icon-192.png" type="image/png">
+  <title>Platform · serviq</title>
+  <meta name="description" content="Serviq'in QR menü, anlık sipariş, kasa, mutfak, garson çağrısı ve İşletme OS özelliklerini keşfedin.">
+  <link rel="canonical" href="https://serviq.com.tr/ozellikler">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/marketing.css">
 </head>
 <body>
-<x-dc>
-<helmet>
-<title>Özellikler · serviq — QR Menü ve Sipariş Sistemi</title>
-<meta name="description" content="QR menü, anlık sipariş, kasa ekranı, garson ekranı, adisyon yazıcısı, yapay zekâ destekli menü ve 4 dil desteği — serviq özellikleri.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-html{scroll-behavior:smooth}
-body{margin:0;background:#FBFBF9;color:#101315;font-family:'Hanken Grotesk',sans-serif;-webkit-font-smoothing:antialiased}
-a{color:#0D5C46;text-decoration:none}
-a:hover{color:#0A4735}
-::selection{background:#DCE9E2}
-@keyframes svIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-@keyframes svFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-@keyframes svPulse{0%,100%{box-shadow:0 0 0 0 rgba(13,92,70,.18)}50%{box-shadow:0 0 0 14px rgba(13,92,70,0)}}
-.sv-float{animation:svFloat 5s ease-in-out infinite}.sv-dot{animation:svPulse 2.2s ease-in-out infinite}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
-</style>
-</helmet>
-<div style="--vq:#0D5C46;--vq2:#0A4735;--ink:#101315;--mut:#5D6167;--line:rgba(16,19,21,.1);min-height:100vh;overflow-x:hidden">
+  <div class="site">
+    <header class="site-nav"><div class="nav-wrap"><a class="brand" href="/" aria-label="serviq ana sayfa"><span class="brand-mark" aria-hidden="true"></span>serviq</a><nav class="nav-links" aria-label="Ana menü"><a href="/">Ana Sayfa</a><a class="is-active" href="/ozellikler">Platform</a><a href="/iletisim">İletişim</a><a class="nav-cta" href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" rel="noreferrer">Canlı demo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a></nav><button class="menu-toggle" type="button" aria-label="Menüyü aç" aria-expanded="false" data-menu-toggle><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div><nav class="mobile-nav" aria-label="Mobil menü" data-mobile-menu><a href="/">Ana Sayfa</a><a href="/ozellikler">Platform</a><a href="/iletisim">İletişim</a><a href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" rel="noreferrer">Canlı demoyu aç →</a></nav></header>
 
-  <div style="position:sticky;top:0;z-index:60;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(251,251,249,.85);border-bottom:1px solid var(--line)">
-    <div style="max-width:1120px;margin:0 auto;display:flex;align-items:center;padding:16px 24px">
-      <a href="./ana-sayfa.dc.html" style="display:flex;align-items:center;gap:9px">
-        <svg width="26" height="26" viewBox="0 0 40 40"><circle cx="16.5" cy="16.5" r="11" fill="none" stroke="var(--vq)" stroke-width="7"></circle><rect x="24" y="24" width="14" height="14" rx="3" fill="#101315"></rect><rect x="28.6" y="28.6" width="4.8" height="4.8" rx="1" fill="#FBFBF9"></rect></svg>
-        <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:20px;color:var(--ink);letter-spacing:-0.4px">serviq</span>
-      </a>
-      <sc-if value="{{ desk }}" hint-placeholder-val="{{ true }}">
-        <div style="margin-left:auto;display:flex;gap:26px;align-items:center;font-weight:600;font-size:14.5px;white-space:nowrap">
-          <a href="./ana-sayfa.dc.html" style="color:var(--mut)">Ana Sayfa</a>
-          <a href="./ozellikler.dc.html" style="color:var(--ink)">Özellikler</a>
-          <a href="./iletisim.dc.html" style="color:var(--mut)">İletişim</a>
-          <a href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" style="background:var(--ink);color:#fff;font-weight:600;font-size:14px;padding:10px 20px;border-radius:8px;white-space:nowrap;transition:background .2s ease" style-hover="background:var(--vq);color:#fff">Canlı Demo</a>
-        </div>
-      </sc-if>
-      <sc-if value="{{ mob }}" hint-placeholder-val="{{ false }}">
-        <button onClick="{{ toggleMenu }}" aria-label="Menü" style="margin-left:auto;background:none;border:1px solid var(--line);border-radius:8px;padding:9px 11px;cursor:pointer;display:flex;align-items:center;justify-content:center">
-          <sc-if value="{{ menuClosed }}" hint-placeholder-val="{{ true }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#101315" stroke-width="2.2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"></path></svg></sc-if>
-          <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#101315" stroke-width="2.2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"></path></svg></sc-if>
-        </button>
-      </sc-if>
-    </div>
-    <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
-      <div style="border-top:1px solid var(--line);background:#FBFBF9;padding:10px 24px 22px;display:flex;flex-direction:column;gap:4px;animation:svIn .2s ease">
-        <a href="./ana-sayfa.dc.html" style="color:var(--ink);font-weight:600;font-size:16px;padding:12px 0;border-bottom:1px solid var(--line)">Ana Sayfa</a>
-        <a href="./ozellikler.dc.html" style="color:var(--ink);font-weight:600;font-size:16px;padding:12px 0;border-bottom:1px solid var(--line)">Özellikler</a>
-        <a href="./iletisim.dc.html" style="color:var(--ink);font-weight:600;font-size:16px;padding:12px 0;border-bottom:1px solid var(--line)">İletişim</a>
-        <a href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" style="margin-top:14px;background:var(--ink);color:#fff;font-weight:600;font-size:15px;padding:13px 20px;border-radius:8px;text-align:center">Canlı Demo</a>
-      </div>
-    </sc-if>
+    <main>
+      <section class="subhero"><div class="subhero-orbit" aria-hidden="true"></div><div class="shell"><div class="subhero-copy" data-reveal><div class="eyebrow">Platform</div><h1 class="display">Servisinizin arkasındaki <span class="accent">akıllı sistem.</span></h1><p>Menü ve siparişi dijitalleştirmenin ötesine geçin. Serviq, işletmenizin her noktasını aynı canlı akışta buluşturur.</p><div class="hero-actions"><a class="button button--primary" href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" rel="noreferrer">Gerçek menüyü deneyin <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a></div></div></div></section>
+
+      <section class="section"><span class="section-number">01 / DENEYİM</span><div class="shell"><div class="section-kicker" data-reveal><div class="eyebrow">Misafirden işletmeye</div><h2 class="display">Her temas noktası, aynı ürün dilinde.</h2><p>İlk QR taramasından gün sonu kararlarına kadar, tüm ekranlar birbiriyle konuşur.</p></div><div class="feature-showcase">
+        <article class="showcase-card" data-reveal><div class="showcase-tag">01 · QR Menü</div><h3>Markanızı masada iyi gösterin.</h3><p>Fotoğraf, kategori, açıklama ve dil seçimi; kendi kimliğinizle, kayıtsız ve uygulamasız açılır.</p><div class="ghost-screen"><div class="ghost-screen-head"><span>DEMO KAFE</span><span>MASA 12</span></div><div class="ghost-lines"><i></i><i></i><i></i></div></div></article>
+        <article class="showcase-card" data-reveal data-reveal-delay="1"><div class="showcase-tag">02 · Sipariş akışı</div><h3>Yeni siparişi kimse kaçırmasın.</h3><p>Sipariş, notlarıyla birlikte kasaya ve mutfağa anında düşer. Durumu da masadaki misafire kadar takip edilir.</p><div class="ghost-screen"><div class="ghost-screen-head"><span>YENİ SİPARİŞ</span><span>₺420</span></div><div class="ghost-lines"><i></i><i></i><i></i></div></div></article>
+        <article class="showcase-card showcase-card--wide" data-reveal><div class="showcase-tag">03 · İşletme OS</div><h3>Operasyonu tek ekrandan, anın içinden yönetin.</h3><p>Canlı masa akışı, ciro, ürün performansı, stok sinyalleri ve ekip verisi aynı karar yüzeyinde. Gecikmiş raporlardan değil, günün içinden karar verin.</p><div class="system-map" aria-hidden="true"><div>QR Menü</div><div>Serviq Core</div><div>Kasa</div><div>Mutfak</div><div>Garson</div><div>Yönetim</div></div></article>
+      </div></div></section>
+
+      <section class="section os-section"><span class="section-number">02 / AKIŞ</span><div class="shell control-layout"><div class="flow-stage" data-reveal><div class="flow-route"></div><div class="flow-node node-qr"><span class="node-icon">QR</span><b>Misafir</b><span>Menü ve sepet</span></div><div class="flow-node node-order"><span class="node-icon">01</span><b>Sipariş</b><span>Canlı bildirim</span></div><div class="flow-node node-kitchen"><span class="node-icon">♨</span><b>Mutfak</b><span>Adisyon ve sıra</span></div><div class="flow-node node-report"><span class="node-icon">↗</span><b>Yönetim</b><span>Veri ve içgörü</span></div><div class="flow-status"><i></i> Tüm uçlar senkronize</div></div><div class="control-copy" data-reveal data-reveal-delay="2"><div class="eyebrow">Aynı ritim</div><h2 class="display">Ekibiniz, ekranlar arasında kaybolmasın.</h2><p>Her rolün ihtiyacı farklıdır. Serviq, müşteri, kasa, mutfak ve yönetim için ayrı ama birbirine bağlı birer deneyim sunar.</p><ul class="check-list"><li><i>✓</i>Müşteri: kolay seçim, net sepet</li><li><i>✓</i>Kasa & mutfak: önceliği belli akış</li><li><i>✓</i>Yönetim: gelir ve operasyon sinyalleri</li></ul></div></div></section>
+
+      <section class="section"><span class="section-number">03 / KURULUM</span><div class="shell"><div class="section-kicker" data-reveal><div class="eyebrow">Hızlı başlangıç</div><h2 class="display">Sistemi değil, servisinizi kuruyoruz.</h2><p>İlk kurulumda size yalnız bırakılacak bir panel değil; işletmenize göre hazırlanmış bir başlangıç akışı sunuyoruz.</p></div><div class="steps"><article class="step" data-reveal><span class="step-no">01</span><h3>Menünüzü birlikte kuralım</h3><p>Ürün, fiyat, kategori ve görsellerinizi alır; markanıza göre ilk menü deneyimini hazırlarız.</p></article><article class="step" data-reveal data-reveal-delay="1"><span class="step-no">02</span><h3>Ekibin akışını netleştirelim</h3><p>Kasa, mutfak ve servis ekranlarını işletmenizdeki iş bölümüyle eşleştiririz.</p></article><article class="step" data-reveal data-reveal-delay="2"><span class="step-no">03</span><h3>Canlıda birlikte test edelim</h3><p>İlk siparişten ilk adisyona kadar tüm zinciri sizinle test eder, ardından yayına alırız.</p></article></div></div></section>
+
+      <section class="final-cta"><div class="shell"><div class="final-cta-inner" data-reveal><div class="eyebrow">Hazır olduğunuzda</div><h2 class="display">Menünüz değil, tüm servis deneyiminiz yükselsin.</h2><p>Canlı demoyu açın veya kısa bir kurulum görüşmesi için bize yazın.</p><div class="hero-actions"><a class="button button--primary" href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" rel="noreferrer">Canlı demoyu aç <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a><a class="button button--ghost" href="/iletisim">Bize ulaşın</a></div></div></div></section>
+    </main>
+
+    <footer class="site-footer"><div class="shell"><div class="footer-grid"><div class="footer-brand"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>serviq</a><p>Restoran ve kafelerin menüden masaya, kasadan yönetime tüm akışını sadeleştiren operasyon sistemi.</p></div><div class="footer-col"><h4>Platform</h4><a href="/ozellikler">QR Menü</a><a href="/ozellikler">Canlı Sipariş</a><a href="/ozellikler">İşletme OS</a></div><div class="footer-col"><h4>Keşfet</h4><a href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" rel="noreferrer">Canlı Demo</a><a href="/iletisim">Kurulum</a><a href="/yonetim">Yönetim girişi</a></div><div class="footer-col"><h4>İletişim</h4><a href="https://wa.me/905019406704" target="_blank" rel="noreferrer">0501 940 67 04</a><a href="mailto:yusufhanozdogan07@gmail.com">E-posta gönder</a></div></div><div class="footer-bottom"><span>© 2026 serviq</span><span>Restoran operasyonunun canlı katmanı</span></div></div></footer>
   </div>
-
-  <section data-screen-label="Özellikler Hero" style="max-width:1120px;margin:0 auto;padding:88px 24px 64px">
-    <div data-rv style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;font-size:12.5px;font-weight:700;letter-spacing:2.2px;color:var(--vq);text-transform:uppercase">Özellikler</div>
-    <h1 data-rv data-rvd="70" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:clamp(34px,4.6vw,52px);line-height:1.08;letter-spacing:-1.4px;margin:18px 0 0;color:var(--ink);max-width:640px;text-wrap:balance">İşletmenizin tüm servisi, tek sistemde</h1>
-    <p data-rv data-rvd="140" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;font-size:17.5px;line-height:1.7;color:var(--mut);margin:20px 0 0;max-width:520px;text-wrap:pretty">Menüden mutfağa, kasadan garsona — serviq her adımı tek akışta birleştirir. Ekstra donanım yok, karmaşa yok.</p>
-  </section>
-
-  <section data-screen-label="QR Menü" style="border-top:1px solid var(--line);background:#fff">
-    <div style="max-width:1120px;margin:0 auto;padding:84px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:56px;align-items:center">
-      <div data-rv style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease">
-        <div style="font-size:12.5px;font-weight:700;letter-spacing:2.2px;color:var(--vq);text-transform:uppercase">QR Menü</div>
-        <h2 style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:clamp(26px,3vw,34px);letter-spacing:-0.9px;margin:14px 0 0;color:var(--ink)">12 tasarım şablonu, saniyede açılan menü</h2>
-        <p style="color:var(--mut);font-size:15.5px;line-height:1.7;margin:14px 0 0;text-wrap:pretty">Markanıza uyan şablonu seçin; logo, renk ve fotoğraflarınızla menünüz hazır. Müşteri uygulama indirmez, kayıt olmaz — QR okutur, menü açılır.</p>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-top:22px;font-size:14.5px;font-weight:600;color:var(--ink)">
-          <div style="display:flex;gap:10px;align-items:center"><span style="width:5px;height:5px;border-radius:50%;background:var(--vq)"></span>Fotoğraflı, kategorili menü</div>
-          <div style="display:flex;gap:10px;align-items:center"><span style="width:5px;height:5px;border-radius:50%;background:var(--vq)"></span>Fiyat ve ürün güncellemesi anında yayında</div>
-          <div style="display:flex;gap:10px;align-items:center"><span style="width:5px;height:5px;border-radius:50%;background:var(--vq)"></span>Baskıya hazır QR masa kartları bizden</div>
-        </div>
-      </div>
-      <div data-rv data-rvd="100" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;display:flex;justify-content:center">
-        <div style="width:264px;background:var(--ink);border-radius:36px;padding:9px;box-shadow:0 24px 60px rgba(16,19,21,.16)">
-          <div style="background:#fff;border-radius:28px;overflow:hidden;position:relative;height:520px">
-            <div style="height:22px;display:flex;justify-content:center;align-items:flex-end"><div style="width:78px;height:18px;background:var(--ink);border-radius:0 0 11px 11px"></div></div>
-            <div style="padding:14px 16px 6px;display:flex;justify-content:space-between;align-items:center">
-              <div><div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:15px">Sahil Cafe</div><div style="font-size:11.5px;color:var(--mut);font-weight:600">Masa 12</div></div>
-              <div style="display:flex;gap:6px;align-items:center"><span style="border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:var(--ink)">TR</span><span style="font-size:10.5px;font-weight:600;color:var(--mut)">EN · AR · RU</span></div>
-            </div>
-            <div style="display:flex;gap:7px;padding:8px 16px 4px">
-              <span style="background:var(--ink);color:#fff;border-radius:7px;padding:6px 12px;font-size:11px;font-weight:700">Ana Yemek</span>
-              <span style="background:#F1F0EC;color:var(--mut);border-radius:7px;padding:6px 12px;font-size:11px;font-weight:700">İçecek</span>
-              <span style="background:#F1F0EC;color:var(--mut);border-radius:7px;padding:6px 12px;font-size:11px;font-weight:700">Tatlı</span>
-            </div>
-            <div style="padding:8px 14px;display:flex;flex-direction:column;gap:8px">
-              <div style="display:flex;gap:10px;align-items:center;background:#F7F6F3;border-radius:12px;padding:9px"><div style="width:44px;height:44px;border-radius:9px;background:#E4DED4"></div><div style="flex:1"><div style="font-weight:700;font-size:12.5px">Izgara Köfte</div><div style="font-size:10.5px;color:var(--mut);font-weight:600;margin-top:1px">Közlenmiş biber, pilav ile</div><div style="font-size:11.5px;font-weight:700;color:var(--ink);margin-top:3px">₺185</div></div><div style="width:24px;height:24px;border-radius:7px;background:var(--vq);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">+</div></div>
-              <div style="display:flex;gap:10px;align-items:center;background:#F7F6F3;border-radius:12px;padding:9px"><div style="width:44px;height:44px;border-radius:9px;background:#DBE4DF"></div><div style="flex:1"><div style="font-weight:700;font-size:12.5px">Levrek Izgara</div><div style="font-size:10.5px;color:var(--mut);font-weight:600;margin-top:1px">Mevsim yeşillikleri ile</div><div style="font-size:11.5px;font-weight:700;color:var(--ink);margin-top:3px">₺320</div></div><div style="width:24px;height:24px;border-radius:7px;background:#ECEAE5;color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">+</div></div>
-              <div style="display:flex;gap:10px;align-items:center;background:#F7F6F3;border-radius:12px;padding:9px"><div style="width:44px;height:44px;border-radius:9px;background:#EADFCE"></div><div style="flex:1"><div style="font-weight:700;font-size:12.5px">Mantı</div><div style="font-size:10.5px;color:var(--mut);font-weight:600;margin-top:1px">Yoğurt, tereyağlı sos</div><div style="font-size:11.5px;font-weight:700;color:var(--ink);margin-top:3px">₺240</div></div><div style="width:24px;height:24px;border-radius:7px;background:#ECEAE5;color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">+</div></div>
-            </div>
-            <div style="position:absolute;left:14px;right:14px;bottom:56px;display:flex;gap:8px">
-              <div style="flex:1;border:1px solid var(--line);border-radius:9px;padding:9px;text-align:center;font-weight:700;font-size:11px;color:var(--ink)">Garson çağır</div>
-              <div style="flex:1;border:1px solid var(--line);border-radius:9px;padding:9px;text-align:center;font-weight:700;font-size:11px;color:var(--ink)">Hesap iste</div>
-            </div>
-            <div style="position:absolute;left:14px;right:14px;bottom:13px;background:var(--ink);color:#fff;border-radius:11px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:12.5px"><span>Sepet · 2 ürün</span><span>₺505</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section data-screen-label="Kasa Ekranı" style="border-top:1px solid var(--line)">
-    <div style="max-width:1120px;margin:0 auto;padding:84px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:56px;align-items:center">
-      <div data-rv style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;display:flex;justify-content:center;order:1">
-        <div style="width:100%;max-width:480px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 24px 56px rgba(16,19,21,.12);overflow:hidden">
-          <div style="background:var(--ink);color:#fff;padding:12px 18px;display:flex;align-items:center;justify-content:space-between">
-            <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:600;font-size:13px">Kasa Ekranı · Sahil Cafe</span>
-            <span style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:rgba(255,255,255,.65)"><span style="width:6px;height:6px;border-radius:50%;background:#4ADE80"></span>Canlı</span>
-          </div>
-          <div style="padding:14px;display:flex;flex-direction:column;gap:9px">
-            <div style="background:#EEF4F1;border:1px solid rgba(13,92,70,.35);border-radius:10px;padding:12px 14px">
-              <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:13.5px;color:var(--vq)">Masa 12 · Yeni sipariş</span><span style="font-weight:700;font-size:13.5px;color:var(--ink)">₺505</span></div>
-              <div style="font-size:12px;font-weight:500;color:var(--ink);margin-top:5px">1× Izgara Köfte · 1× Levrek Izgara · Not: az pişmiş</div>
-              <div style="display:flex;gap:8px;margin-top:10px">
-                <span style="background:var(--vq);color:#fff;border-radius:7px;padding:6px 14px;font-size:11.5px;font-weight:700">Onayla</span>
-                <span style="border:1px solid var(--line);color:var(--mut);border-radius:7px;padding:6px 14px;font-size:11.5px;font-weight:700">Adisyon yazdır</span>
-              </div>
-            </div>
-            <div style="background:#F7F6F3;border-radius:10px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center"><div><span style="font-weight:700;font-size:13px">Masa 8</span><span style="font-size:12px;font-weight:500;color:var(--mut);margin-left:8px">2× Mantı · 1× Ayran</span></div><span style="font-weight:700;font-size:12px;color:#8A6D1B">Hazırlanıyor</span></div>
-            <div style="background:#F7F6F3;border-radius:10px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center"><div><span style="font-weight:700;font-size:13px">Masa 3</span><span style="font-size:12px;font-weight:500;color:var(--mut);margin-left:8px">Hesap istedi</span></div><span style="font-weight:700;font-size:12px;color:var(--ink)">Çağrı</span></div>
-            <div style="background:#F7F6F3;border-radius:10px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;opacity:.6"><div><span style="font-weight:700;font-size:13px">Masa 2</span><span style="font-size:12px;font-weight:500;color:var(--mut);margin-left:8px">₺340</span></div><span style="font-weight:700;font-size:12px;color:var(--vq)">Ödendi</span></div>
-          </div>
-        </div>
-      </div>
-      <div data-rv data-rvd="80" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;order:2">
-        <div style="font-size:12.5px;font-weight:700;letter-spacing:2.2px;color:var(--vq);text-transform:uppercase">Kasa Ekranı</div>
-        <h2 style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:clamp(26px,3vw,34px);letter-spacing:-0.9px;margin:14px 0 0;color:var(--ink)">Anlık sipariş, sesli bildirim</h2>
-        <p style="color:var(--mut);font-size:15.5px;line-height:1.7;margin:14px 0 0;text-wrap:pretty">Sipariş verildiği an kasa ekranında belirir, zil sesiyle haber verir. Hazırlanıyor → servis edildi → ödendi akışını tek dokunuşla yönetin. Yoğun saatte bile hiçbir sipariş kaçmaz.</p>
-        <div style="margin-top:20px;display:flex;align-items:center;gap:10px;color:var(--ink);font-weight:600;font-size:14.5px"><span style="width:5px;height:5px;border-radius:50%;background:var(--vq)"></span>Tarayıcıda çalışır — mevcut tablet veya bilgisayar yeterli</div>
-      </div>
-    </div>
-  </section>
-
-  <section data-screen-label="Servis Araçları" style="border-top:1px solid var(--line);background:#fff">
-    <div style="max-width:1120px;margin:0 auto;padding:84px 24px">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:36px 48px">
-        <div data-rv style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;border-top:2px solid var(--ink);padding-top:22px">
-          <div style="font-size:12px;font-weight:700;letter-spacing:1.8px;color:var(--vq);text-transform:uppercase">Garson Çağırma</div>
-          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:19px;margin-top:12px;color:var(--ink)">Tek dokunuşla çağrı ve hesap</div>
-          <p style="color:var(--mut);font-size:14.5px;line-height:1.7;margin:10px 0 0">Müşteri menüden "Garson çağır" veya "Hesap iste" der; çağrı masa numarasıyla kasaya düşer.</p>
-        </div>
-        <div data-rv data-rvd="70" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;border-top:2px solid var(--ink);padding-top:22px">
-          <div style="font-size:12px;font-weight:700;letter-spacing:1.8px;color:var(--vq);text-transform:uppercase">Garson Ekranı</div>
-          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:19px;margin-top:12px;color:var(--ink)">Personel telefonu, sipariş cihazı olur</div>
-          <p style="color:var(--mut);font-size:14.5px;line-height:1.7;margin:10px 0 0">QR kullanmak istemeyen müşteri için garson kendi telefonundan masaya sipariş girer — aynı akış, aynı kasa, aynı adisyon.</p>
-        </div>
-        <div data-rv data-rvd="140" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;border-top:2px solid var(--ink);padding-top:22px">
-          <div style="font-size:12px;font-weight:700;letter-spacing:1.8px;color:var(--vq);text-transform:uppercase">Adisyon Yazıcısı</div>
-          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:19px;margin-top:12px;color:var(--ink)">Mutfak adisyonu + müşteri fişi</div>
-          <p style="color:var(--mut);font-size:14.5px;line-height:1.7;margin:10px 0 0">Standart 80mm termal yazıcınıza bağlanır. Sipariş onaylanınca mutfak adisyonu çıkar; hesap kapanınca müşteri fişi yazdırılır.</p>
-        </div>
-        <div data-rv style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;border-top:2px solid var(--ink);padding-top:22px">
-          <div style="font-size:12px;font-weight:700;letter-spacing:1.8px;color:var(--vq);text-transform:uppercase">Yönetim Paneli</div>
-          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:19px;margin-top:12px;color:var(--ink)">Masa haritası, ciro, Z raporu</div>
-          <p style="color:var(--mut);font-size:14.5px;line-height:1.7;margin:10px 0 0">Hangi masa dolu, günlük ciro ne, en çok ne satıyor — tek panelde. Gün sonunda Z raporunuz hazır.</p>
-        </div>
-        <div data-rv data-rvd="70" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;border-top:2px solid var(--ink);padding-top:22px">
-          <div style="font-size:12px;font-weight:700;letter-spacing:1.8px;color:var(--vq);text-transform:uppercase">4 Dil Desteği</div>
-          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:19px;margin-top:12px;color:var(--ink)">TR / EN / AR / RU otomatik çeviri</div>
-          <p style="color:var(--mut);font-size:14.5px;line-height:1.7;margin:10px 0 0">Menü, müşterinin telefon diline göre otomatik çevrilir. Turistik bölgede garson İngilizce anlatmak zorunda kalmaz.</p>
-        </div>
-        <div data-rv data-rvd="140" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;border-top:2px solid var(--ink);padding-top:22px">
-          <div style="font-size:12px;font-weight:700;letter-spacing:1.8px;color:var(--vq);text-transform:uppercase">Yapay Zekâ</div>
-          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:19px;margin-top:12px;color:var(--ink)">Fotoğraftan menü, saniyeler içinde</div>
-          <p style="color:var(--mut);font-size:14.5px;line-height:1.7;margin:10px 0 0">Basılı menünüzün fotoğrafından tüm ürünleri otomatik oluşturur; eksik ürün görsellerini üretir, alerjen ve kalori önerir — 2026 Fiyat Etiketi Yönetmeliği'ne uyumlu.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section data-screen-label="Ödeme Notu" style="border-top:1px solid var(--line)">
-    <div style="max-width:1120px;margin:0 auto;padding:64px 24px">
-      <div data-rv style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;display:flex;gap:24px;align-items:flex-start;max-width:760px">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--vq)" stroke-width="1.8" style="flex-shrink:0;margin-top:4px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg>
-        <div>
-          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:20px;color:var(--ink)">Online ödeme yok — ödeme kasada</div>
-          <p style="color:var(--mut);font-size:15px;line-height:1.7;margin:10px 0 0;text-wrap:pretty">Bilinçli bir tercih: para işletmenin kasasından geçer, komisyon kesintisi ve iade karmaşası olmaz. Esnaf için güven, muhasebe için sadelik.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section data-screen-label="Özellikler CTA" style="background:var(--ink)">
-    <div style="max-width:1120px;margin:0 auto;padding:88px 24px;text-align:center">
-      <h2 data-rv style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:clamp(28px,3.8vw,42px);letter-spacing:-1px;color:#fff;margin:0">Hepsini canlı görün</h2>
-      <div data-rv data-rvd="80" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:32px">
-        <a href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" style="background:#fff;color:var(--ink);font-weight:600;font-size:15.5px;padding:14px 28px;border-radius:8px;white-space:nowrap;transition:opacity .2s ease" style-hover="opacity:.85;color:var(--ink)">Demo Menüyü Aç</a>
-        <a href="./iletisim.dc.html" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.3);font-weight:600;font-size:15.5px;padding:13px 26px;border-radius:8px;white-space:nowrap;transition:border-color .2s ease" style-hover="border-color:#fff;color:#fff">İletişime Geç</a>
-      </div>
-    </div>
-  </section>
-
-  <footer style="border-top:1px solid var(--line);padding:52px 24px 60px">
-    <div style="max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;gap:40px;justify-content:space-between;align-items:flex-start">
-      <div style="max-width:280px">
-        <div style="display:flex;align-items:center;gap:8px"><svg width="22" height="22" viewBox="0 0 40 40"><circle cx="16.5" cy="16.5" r="11" fill="none" stroke="var(--vq)" stroke-width="7"></circle><rect x="24" y="24" width="14" height="14" rx="3" fill="#101315"></rect><rect x="28.6" y="28.6" width="4.8" height="4.8" rx="1" fill="#FBFBF9"></rect></svg><span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:18px;color:var(--ink)">serviq</span></div>
-        <p style="color:var(--mut);font-size:13.5px;line-height:1.65;margin:12px 0 0">Restoran ve kafeler için QR menü + sipariş sistemi.</p>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px;font-weight:600;font-size:14px">
-        <div style="font-size:11.5px;font-weight:700;letter-spacing:1.8px;color:var(--mut);text-transform:uppercase">Sayfalar</div>
-        <a href="./ana-sayfa.dc.html" style="color:var(--ink)">Ana Sayfa</a>
-        <a href="./ozellikler.dc.html" style="color:var(--ink)">Özellikler</a>
-        <a href="./iletisim.dc.html" style="color:var(--ink)">İletişim &amp; Demo</a>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px;font-weight:600;font-size:14px">
-        <div style="font-size:11.5px;font-weight:700;letter-spacing:1.8px;color:var(--mut);text-transform:uppercase">İletişim</div>
-        <a href="https://wa.me/905019406704" target="_blank" style="color:var(--ink)">0501 940 67 04</a>
-        <a href="mailto:yusufhanozdogan07@gmail.com" style="color:var(--ink)">yusufhanozdogan07@gmail.com</a>
-        <a href="https://serviq.com.tr" target="_blank" style="color:var(--ink)">serviq.com.tr</a>
-      </div>
-    </div>
-    <div style="max-width:1120px;margin:40px auto 0;color:var(--mut);font-size:12.5px;font-weight:500">© 2026 serviq · Tüm hakları saklıdır.</div>
-  </footer>
-</div>
-</x-dc>
-<script type="text/x-dc" data-dc-script>
-class Component extends DCLogic {
-  state = { w: 1200, menuOpen: false };
-  componentDidMount() {
-    const onResize = () => this.setState({ w: window.innerWidth });
-    window.addEventListener('resize', onResize);
-    this._offResize = () => window.removeEventListener('resize', onResize);
-    onResize();
-    const rvEls = [...document.querySelectorAll('[data-rv]')];
-    this.io = new IntersectionObserver((ents) => ents.forEach(e => {
-      if (!e.isIntersecting) return;
-      const el = e.target;
-      setTimeout(() => { el.style.opacity = '1'; el.style.transform = 'translateY(0)'; }, +(el.dataset.rvd || 0));
-      this.io.unobserve(el);
-    }), { threshold: 0.05, rootMargin: '0px 0px -20px 0px' });
-    rvEls.forEach(el => this.io.observe(el));
-  }
-  componentWillUnmount() { this.io && this.io.disconnect(); this._offResize && this._offResize(); }
-  renderVals() {
-    const s = this.state;
-    return {
-      desk: s.w >= 800, mob: s.w < 800, menuOpen: s.menuOpen, menuClosed: !s.menuOpen,
-      toggleMenu: () => this.setState(st => ({ menuOpen: !st.menuOpen }))
-    };
-  }
-}
-</script>
+  <script src="/marketing.js" defer></script>
 </body>
 </html>
