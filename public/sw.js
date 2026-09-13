@@ -1,6 +1,6 @@
 // Minimal service worker — uygulama kabuğu için ağ öncelikli, çevrimdışı yedekli.
 // Menü/sipariş verisi Firebase'den canlı gelir; SW yalnızca kabuğu hızlandırır.
-const CACHE = 'sofra-v1'
+const CACHE = 'serviq-marketing-v2'
 
 self.addEventListener('install', (e) => {
   self.skipWaiting()

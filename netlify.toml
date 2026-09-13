@@ -12,6 +12,19 @@
   status = 200
   force = true
 
+# Pazarlama sayfaları için temiz ve paylaşılabilir adresler.
+[[redirects]]
+  from = "/ozellikler"
+  to = "/ozellikler.dc.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/iletisim"
+  to = "/iletisim.dc.html"
+  status = 200
+  force = true
+
 # SPA fallback — tüm yollar index.html'e gitsin (React Router için)
 [[redirects]]
   from = "/*"

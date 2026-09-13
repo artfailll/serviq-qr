@@ -1,231 +1,33 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="tr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="./support.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071110">
+  <link rel="icon" href="/icon-192.png" type="image/png">
+  <title>İletişim & Demo · serviq</title>
+  <meta name="description" content="Serviq canlı demosunu deneyin veya restoran ve kafeniz için QR menü, sipariş ve operasyon kurulumu hakkında bize ulaşın.">
+  <link rel="canonical" href="https://serviq.com.tr/iletisim">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/marketing.css">
 </head>
 <body>
-<x-dc>
-<helmet>
-<title>İletişim &amp; Demo · serviq — QR Menü ve Sipariş Sistemi</title>
-<meta name="description" content="serviq ile iletişime geçin: WhatsApp 0501 940 67 04. Canlı demo menüsü ve kasa ekranını hemen deneyin.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-html{scroll-behavior:smooth}
-body{margin:0;background:#FBFBF9;color:#101315;font-family:'Hanken Grotesk',sans-serif;-webkit-font-smoothing:antialiased}
-a{color:#0D5C46;text-decoration:none}
-a:hover{color:#0A4735}
-::selection{background:#DCE9E2}
-@keyframes svIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-@keyframes svFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-@keyframes svPulse{0%,100%{box-shadow:0 0 0 0 rgba(13,92,70,.18)}50%{box-shadow:0 0 0 14px rgba(13,92,70,0)}}
-.sv-float{animation:svFloat 5s ease-in-out infinite}.sv-dot{animation:svPulse 2.2s ease-in-out infinite}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
-</style>
-</helmet>
-<div style="--vq:#0D5C46;--vq2:#0A4735;--ink:#101315;--mut:#5D6167;--line:rgba(16,19,21,.1);min-height:100vh;overflow-x:hidden">
+  <div class="site">
+    <header class="site-nav"><div class="nav-wrap"><a class="brand" href="/" aria-label="serviq ana sayfa"><span class="brand-mark" aria-hidden="true"></span>serviq</a><nav class="nav-links" aria-label="Ana menü"><a href="/">Ana Sayfa</a><a href="/ozellikler">Platform</a><a class="is-active" href="/iletisim">İletişim</a><a class="nav-cta" href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" rel="noreferrer">Canlı demo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a></nav><button class="menu-toggle" type="button" aria-label="Menüyü aç" aria-expanded="false" data-menu-toggle><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div><nav class="mobile-nav" aria-label="Mobil menü" data-mobile-menu><a href="/">Ana Sayfa</a><a href="/ozellikler">Platform</a><a href="/iletisim">İletişim</a><a href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" rel="noreferrer">Canlı demoyu aç →</a></nav></header>
 
-  <div style="position:sticky;top:0;z-index:60;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(251,251,249,.85);border-bottom:1px solid var(--line)">
-    <div style="max-width:1120px;margin:0 auto;display:flex;align-items:center;padding:16px 24px">
-      <a href="./ana-sayfa.dc.html" style="display:flex;align-items:center;gap:9px">
-        <svg width="26" height="26" viewBox="0 0 40 40"><circle cx="16.5" cy="16.5" r="11" fill="none" stroke="var(--vq)" stroke-width="7"></circle><rect x="24" y="24" width="14" height="14" rx="3" fill="#101315"></rect><rect x="28.6" y="28.6" width="4.8" height="4.8" rx="1" fill="#FBFBF9"></rect></svg>
-        <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:20px;color:var(--ink);letter-spacing:-0.4px">serviq</span>
-      </a>
-      <sc-if value="{{ desk }}" hint-placeholder-val="{{ true }}">
-        <div style="margin-left:auto;display:flex;gap:26px;align-items:center;font-weight:600;font-size:14.5px;white-space:nowrap">
-          <a href="./ana-sayfa.dc.html" style="color:var(--mut)">Ana Sayfa</a>
-          <a href="./ozellikler.dc.html" style="color:var(--mut)">Özellikler</a>
-          <a href="./iletisim.dc.html" style="color:var(--ink)">İletişim</a>
-          <a href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" style="background:var(--ink);color:#fff;font-weight:600;font-size:14px;padding:10px 20px;border-radius:8px;white-space:nowrap;transition:background .2s ease" style-hover="background:var(--vq);color:#fff">Canlı Demo</a>
-        </div>
-      </sc-if>
-      <sc-if value="{{ mob }}" hint-placeholder-val="{{ false }}">
-        <button onClick="{{ toggleMenu }}" aria-label="Menü" style="margin-left:auto;background:none;border:1px solid var(--line);border-radius:8px;padding:9px 11px;cursor:pointer;display:flex;align-items:center;justify-content:center">
-          <sc-if value="{{ menuClosed }}" hint-placeholder-val="{{ true }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#101315" stroke-width="2.2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"></path></svg></sc-if>
-          <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#101315" stroke-width="2.2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"></path></svg></sc-if>
-        </button>
-      </sc-if>
-    </div>
-    <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
-      <div style="border-top:1px solid var(--line);background:#FBFBF9;padding:10px 24px 22px;display:flex;flex-direction:column;gap:4px;animation:svIn .2s ease">
-        <a href="./ana-sayfa.dc.html" style="color:var(--ink);font-weight:600;font-size:16px;padding:12px 0;border-bottom:1px solid var(--line)">Ana Sayfa</a>
-        <a href="./ozellikler.dc.html" style="color:var(--ink);font-weight:600;font-size:16px;padding:12px 0;border-bottom:1px solid var(--line)">Özellikler</a>
-        <a href="./iletisim.dc.html" style="color:var(--ink);font-weight:600;font-size:16px;padding:12px 0;border-bottom:1px solid var(--line)">İletişim</a>
-        <a href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" style="margin-top:14px;background:var(--ink);color:#fff;font-weight:600;font-size:15px;padding:13px 20px;border-radius:8px;text-align:center">Canlı Demo</a>
-      </div>
-    </sc-if>
+    <main>
+      <section class="subhero"><div class="subhero-orbit" aria-hidden="true"></div><div class="shell"><div class="subhero-copy" data-reveal><div class="eyebrow">İletişim · demo · kurulum</div><h1 class="display">Bir sonraki <span class="accent">servisiniz</span> buradan başlıyor.</h1><p>Canlı demoda bir misafir gibi sipariş verin. İşletmeniz için detay konuşmak isterseniz, kısa bir mesaj yeterli.</p></div></div></section>
+
+      <section class="section"><span class="section-number">01 / DEMO</span><div class="shell"><div class="section-kicker" data-reveal><div class="eyebrow">Önce deneyin</div><h2 class="display">İki ekran, tek canlı akış.</h2><p>Demo menüden sipariş verin; ardından kasa ekranından siparişin anlık gelişini görün.</p></div><div class="feature-showcase"><article class="showcase-card" data-reveal><div class="showcase-tag">Misafir deneyimi</div><h3>Menüden sipariş verin.</h3><p>QR ile açılan menüyü, sepeti, ürün notlarını ve sipariş akışını gerçek bir misafir gibi deneyin.</p><div class="hero-actions"><a class="button button--primary" href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" rel="noreferrer">Demo menüyü aç <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a></div><div class="ghost-screen"><div class="ghost-screen-head"><span>DEMO KAFE</span><span>MASA 05</span></div><div class="ghost-lines"><i></i><i></i><i></i></div></div></article><article class="showcase-card" data-reveal data-reveal-delay="1"><div class="showcase-tag">İşletme deneyimi</div><h3>Siparişi kasada görün.</h3><p>Diğer sekmede kasa ekranını açın; demo siparişinin doğru akışla kasaya düştüğünü canlı izleyin.</p><div class="hero-actions"><a class="button button--ghost" href="https://serviq.com.tr/kasa?isletme=demo" target="_blank" rel="noreferrer">Demo kasayı aç <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a></div><div class="ghost-screen"><div class="ghost-screen-head"><span>YENİ SİPARİŞ</span><span>CANLI</span></div><div class="ghost-lines"><i></i><i></i><i></i></div></div></article></div></div></section>
+
+      <section class="section os-section"><span class="section-number">02 / İLETİŞİM</span><div class="shell contact-grid"><div class="contact-stack" data-reveal><a class="contact-link" href="https://wa.me/905019406704" target="_blank" rel="noreferrer"><span>WhatsApp</span><b>0501 940 67 04</b><em>→</em></a><a class="contact-link" href="tel:+905019406704"><span>Telefon</span><b>0501 940 67 04</b><em>→</em></a><a class="contact-link" href="mailto:yusufhanozdogan07@gmail.com"><span>E-posta</span><b>Bir mesaj gönderin</b><em>→</em></a><a class="contact-link" href="/yonetim"><span>Mevcut müşteri</span><b>Yönetim paneline git</b><em>→</em></a></div><form class="contact-form" data-contact-form data-reveal data-reveal-delay="2"><h2>İşletmenizi birlikte kuralım.</h2><p>Bilgilerinizi yazın; mesajınız WhatsApp üzerinde hazır olacak. Gönderdiğinizde size aynı kanaldan dönüş yapalım.</p><div class="form-grid"><div class="form-field"><label for="name">Adınız</label><input id="name" name="name" autocomplete="name" placeholder="Örn. Mehmet Yılmaz" required></div><div class="form-field"><label for="business">İşletme adı</label><input id="business" name="business" placeholder="Örn. Sahil Cafe" required></div><div class="form-field form-field--wide"><label for="phone">Telefon</label><input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="05__ ___ __ __" required></div><div class="form-field form-field--wide"><label for="note">Kısaca ihtiyacınız</label><textarea id="note" name="note" placeholder="QR menü, kasa, yeni açılış, mevcut sistemi yenileme…"></textarea></div></div><button class="button button--primary" type="submit">WhatsApp’ta mesajı hazırla <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button><p class="form-note">Form bilgileri sunucuda saklanmaz; yalnızca mesajı oluşturmak için kullanılır.</p><div class="form-success" role="status">Mesajınız hazır. WhatsApp penceresi açılıyor…</div></form></div></section>
+
+      <section class="quote-section"><div class="shell"><div class="quote-card" data-reveal><div class="quote-label">Kısa bir başlangıç</div><blockquote>“İyi bir kurulum, ilk gün ekibinize yeni bir sistem öğreniyormuş gibi hissettirmemeli.”</blockquote><div class="quote-meta"><i class="avatar" aria-hidden="true"></i><div><b>Serviq kurulum yaklaşımı</b><span>İşletmenizin akışına göre, birlikte</span></div></div></div></div></section>
+    </main>
+
+    <footer class="site-footer"><div class="shell"><div class="footer-grid"><div class="footer-brand"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>serviq</a><p>Restoran ve kafelerin menüden masaya, kasadan yönetime tüm akışını sadeleştiren operasyon sistemi.</p></div><div class="footer-col"><h4>Platform</h4><a href="/ozellikler">QR Menü</a><a href="/ozellikler">Canlı Sipariş</a><a href="/ozellikler">İşletme OS</a></div><div class="footer-col"><h4>Keşfet</h4><a href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" rel="noreferrer">Canlı Demo</a><a href="/iletisim">Kurulum</a><a href="/yonetim">Yönetim girişi</a></div><div class="footer-col"><h4>İletişim</h4><a href="https://wa.me/905019406704" target="_blank" rel="noreferrer">0501 940 67 04</a><a href="mailto:yusufhanozdogan07@gmail.com">E-posta gönder</a></div></div><div class="footer-bottom"><span>© 2026 serviq</span><span>Restoran operasyonunun canlı katmanı</span></div></div></footer>
   </div>
-
-  <section data-screen-label="İletişim Hero" style="max-width:1120px;margin:0 auto;padding:88px 24px 56px">
-    <div data-rv style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;font-size:12.5px;font-weight:700;letter-spacing:2.2px;color:var(--vq);text-transform:uppercase">İletişim &amp; Demo</div>
-    <h1 data-rv data-rvd="70" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:clamp(34px,4.6vw,52px);line-height:1.08;letter-spacing:-1.4px;margin:18px 0 0;color:var(--ink);max-width:560px;text-wrap:balance">Bir mesaj uzağınızdayız</h1>
-    <p data-rv data-rvd="140" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;font-size:17.5px;line-height:1.7;color:var(--mut);margin:20px 0 0;max-width:480px;text-wrap:pretty">Kurulumu biz yapıyoruz, 20 dakikada hazırsınız. Yazın, aynı gün dönelim.</p>
-  </section>
-
-  <section data-screen-label="İletişim Kanalları" style="border-top:1px solid var(--line);background:#fff">
-    <div style="max-width:1120px;margin:0 auto;padding:72px 24px">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:36px">
-        <a data-rv href="https://wa.me/905019406704" target="_blank" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;border-top:2px solid var(--vq);padding-top:22px;display:block">
-          <div style="display:flex;align-items:center;gap:10px">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--vq)"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5.1-1.3A10 10 0 1 0 12 2zm5.2 13.9c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1-.4-.1-.9-.3-1.5-.6-2.6-1.1-4.3-3.8-4.4-4-.1-.2-1.1-1.4-1.1-2.7s.7-1.9.9-2.2c.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.4l.9 2.1c.1.2.1.4 0 .6l-.4.6-.3.4c-.1.2-.2.3-.1.5.1.2.7 1.1 1.5 1.8 1 .9 1.9 1.2 2.2 1.3.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l2 .9c.2.1.4.2.4.3.1.1.1.5-.1 1z"></path></svg>
-            <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:17px;color:var(--ink)">WhatsApp</span>
-          </div>
-          <div style="font-weight:600;font-size:15px;color:var(--ink);margin-top:12px">0501 940 67 04</div>
-          <div style="font-size:13.5px;color:var(--mut);font-weight:500;margin-top:4px">Genellikle 1 saat içinde yanıt</div>
-        </a>
-        <a data-rv data-rvd="70" href="tel:+905019406704" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;border-top:2px solid var(--ink);padding-top:22px;display:block">
-          <div style="display:flex;align-items:center;gap:10px">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.8"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2z"></path></svg>
-            <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:17px;color:var(--ink)">Telefon</span>
-          </div>
-          <div style="font-weight:600;font-size:15px;color:var(--ink);margin-top:12px">0501 940 67 04</div>
-          <div style="font-size:13.5px;color:var(--mut);font-weight:500;margin-top:4px">Hafta içi 09.00 – 19.00</div>
-        </a>
-        <a data-rv data-rvd="140" href="mailto:yusufhanozdogan07@gmail.com" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;border-top:2px solid var(--ink);padding-top:22px;display:block">
-          <div style="display:flex;align-items:center;gap:10px">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path></svg>
-            <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:17px;color:var(--ink)">E-posta</span>
-          </div>
-          <div style="font-weight:600;font-size:15px;color:var(--ink);margin-top:12px;word-break:break-all">yusufhanozdogan07@gmail.com</div>
-          <div style="font-size:13.5px;color:var(--mut);font-weight:500;margin-top:4px">Aynı gün dönüş</div>
-        </a>
-        <a data-rv data-rvd="210" href="https://serviq.com.tr" target="_blank" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;border-top:2px solid var(--ink);padding-top:22px;display:block">
-          <div style="display:flex;align-items:center;gap:10px">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.8"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"></path></svg>
-            <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:17px;color:var(--ink)">Web</span>
-          </div>
-          <div style="font-weight:600;font-size:15px;color:var(--ink);margin-top:12px">serviq.com.tr</div>
-          <div style="font-size:13.5px;color:var(--mut);font-weight:500;margin-top:4px">Ürün sitesi</div>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <section data-screen-label="Canlı Demo" style="border-top:1px solid var(--line)">
-    <div style="max-width:1120px;margin:0 auto;padding:84px 24px">
-      <div data-rv style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;max-width:560px;margin-bottom:44px">
-        <div style="font-size:12.5px;font-weight:700;letter-spacing:2.2px;color:var(--vq);text-transform:uppercase">Canlı demo</div>
-        <h2 style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:clamp(26px,3.4vw,36px);letter-spacing:-1px;margin:14px 0 0;color:var(--ink)">Kendiniz deneyin — kayıt gerekmez</h2>
-        <p style="color:var(--mut);font-size:15.5px;line-height:1.7;margin:14px 0 0">İki sekmeyi yan yana açın: menüden sipariş verin, kasaya düşüşünü canlı izleyin.</p>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px">
-        <a data-rv href="https://serviq.com.tr/menu?isletme=demo&amp;masa=5" target="_blank" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease,border-color .2s ease;display:block;background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px" style-hover="border-color:var(--vq)">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--vq);text-transform:uppercase">Müşteri gözünden</span>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mut)" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"></path></svg>
-          </div>
-          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:21px;color:var(--ink);margin-top:16px">Demo Menü · Masa 5</div>
-          <p style="color:var(--mut);font-size:14.5px;line-height:1.7;margin:10px 0 0">QR okutan müşterinin gördüğü ekran. Ürün ekleyin, sepeti doldurun, sipariş verin.</p>
-        </a>
-        <a data-rv data-rvd="90" href="https://serviq.com.tr/kasa?isletme=demo" target="_blank" style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease,opacity .2s ease;display:block;background:var(--ink);border-radius:14px;padding:30px" style-hover="opacity:.92">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:12px;font-weight:700;letter-spacing:1.5px;color:#7BC4AB;text-transform:uppercase">İşletme gözünden</span>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"></path></svg>
-          </div>
-          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:21px;color:#fff;margin-top:16px">Demo Kasa Ekranı</div>
-          <p style="color:rgba(255,255,255,.65);font-size:14.5px;line-height:1.7;margin:10px 0 0">Verdiğiniz demo siparişin kasaya düşüşünü canlı izleyin.</p>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <section data-screen-label="Form" style="border-top:1px solid var(--line);background:#fff">
-    <div style="max-width:560px;margin:0 auto;padding:84px 24px">
-      <div data-rv style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease">
-        <div style="font-size:12.5px;font-weight:700;letter-spacing:2.2px;color:var(--vq);text-transform:uppercase">Geri arama</div>
-        <h2 style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:clamp(24px,3vw,30px);letter-spacing:-0.8px;margin:14px 0 0;color:var(--ink)">Sizi biz arayalım</h2>
-        <p style="color:var(--mut);font-size:15px;line-height:1.7;margin:12px 0 0">Bilgilerinizi bırakın, aynı gün dönüş yapalım.</p>
-        <sc-if value="{{ sent }}" hint-placeholder-val="{{ false }}">
-          <div style="margin-top:28px;border:1px solid rgba(13,92,70,.4);background:#F4F8F6;border-radius:12px;padding:24px;animation:svIn .3s ease">
-            <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:17px;color:var(--vq)">Talebiniz hazır</div>
-            <div style="color:var(--mut);font-weight:500;font-size:14.5px;margin-top:6px">{{ sentName }}, bilgileriniz WhatsApp mesajı olarak hazırlandı — açılan sohbette "Gönder"e basmanız yeterli. Aynı gün dönüş yapıyoruz.</div>
-          </div>
-        </sc-if>
-        <sc-if value="{{ notSent }}" hint-placeholder-val="{{ true }}">
-          <div style="display:flex;flex-direction:column;gap:18px;margin-top:28px">
-            <div>
-              <label style="font-weight:700;font-size:13.5px;color:var(--ink);display:block;margin-bottom:7px">Adınız</label>
-              <input value="{{ ad }}" onChange="{{ onAd }}" placeholder="örn. Mehmet Yılmaz" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:13px 15px;font-family:'Hanken Grotesk',sans-serif;font-weight:500;font-size:15px;background:#FBFBF9;outline:none;transition:border-color .2s ease" style-focus="border-color:var(--vq);background:#fff">
-            </div>
-            <div>
-              <label style="font-weight:700;font-size:13.5px;color:var(--ink);display:block;margin-bottom:7px">İşletme adı</label>
-              <input value="{{ isletme }}" onChange="{{ onIsletme }}" placeholder="örn. Sahil Cafe" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:13px 15px;font-family:'Hanken Grotesk',sans-serif;font-weight:500;font-size:15px;background:#FBFBF9;outline:none;transition:border-color .2s ease" style-focus="border-color:var(--vq);background:#fff">
-            </div>
-            <div>
-              <label style="font-weight:700;font-size:13.5px;color:var(--ink);display:block;margin-bottom:7px">Telefon</label>
-              <input value="{{ tel }}" onChange="{{ onTel }}" placeholder="05__ ___ __ __" type="tel" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:13px 15px;font-family:'Hanken Grotesk',sans-serif;font-weight:500;font-size:15px;background:#FBFBF9;outline:none;transition:border-color .2s ease" style-focus="border-color:var(--vq);background:#fff">
-            </div>
-            <button onClick="{{ submit }}" style="margin-top:4px;background:var(--vq);color:#fff;border:none;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;font-weight:600;font-size:15.5px;padding:15px 24px;border-radius:8px;transition:background .2s ease" style-hover="background:var(--vq2)">Beni Arayın</button>
-            <sc-if value="{{ err }}" hint-placeholder-val="{{ false }}"><div style="color:#B3261E;font-weight:600;font-size:13.5px">{{ err }}</div></sc-if>
-          </div>
-        </sc-if>
-      </div>
-    </div>
-  </section>
-
-  <footer style="border-top:1px solid var(--line);padding:52px 24px 60px">
-    <div style="max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;gap:40px;justify-content:space-between;align-items:flex-start">
-      <div style="max-width:280px">
-        <div style="display:flex;align-items:center;gap:8px"><svg width="22" height="22" viewBox="0 0 40 40"><circle cx="16.5" cy="16.5" r="11" fill="none" stroke="var(--vq)" stroke-width="7"></circle><rect x="24" y="24" width="14" height="14" rx="3" fill="#101315"></rect><rect x="28.6" y="28.6" width="4.8" height="4.8" rx="1" fill="#FBFBF9"></rect></svg><span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:18px;color:var(--ink)">serviq</span></div>
-        <p style="color:var(--mut);font-size:13.5px;line-height:1.65;margin:12px 0 0">Restoran ve kafeler için QR menü + sipariş sistemi.</p>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px;font-weight:600;font-size:14px">
-        <div style="font-size:11.5px;font-weight:700;letter-spacing:1.8px;color:var(--mut);text-transform:uppercase">Sayfalar</div>
-        <a href="./ana-sayfa.dc.html" style="color:var(--ink)">Ana Sayfa</a>
-        <a href="./ozellikler.dc.html" style="color:var(--ink)">Özellikler</a>
-        <a href="./iletisim.dc.html" style="color:var(--ink)">İletişim &amp; Demo</a>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px;font-weight:600;font-size:14px">
-        <div style="font-size:11.5px;font-weight:700;letter-spacing:1.8px;color:var(--mut);text-transform:uppercase">İletişim</div>
-        <a href="https://wa.me/905019406704" target="_blank" style="color:var(--ink)">0501 940 67 04</a>
-        <a href="mailto:yusufhanozdogan07@gmail.com" style="color:var(--ink)">yusufhanozdogan07@gmail.com</a>
-        <a href="https://serviq.com.tr" target="_blank" style="color:var(--ink)">serviq.com.tr</a>
-      </div>
-    </div>
-    <div style="max-width:1120px;margin:40px auto 0;color:var(--mut);font-size:12.5px;font-weight:500">© 2026 serviq · Tüm hakları saklıdır.</div>
-  </footer>
-</div>
-</x-dc>
-<script type="text/x-dc" data-dc-script>
-class Component extends DCLogic {
-  state = { w: 1200, menuOpen: false, ad: '', isletme: '', tel: '', sent: false, err: '' };
-  componentDidMount() {
-    const onResize = () => this.setState({ w: window.innerWidth });
-    window.addEventListener('resize', onResize);
-    this._offResize = () => window.removeEventListener('resize', onResize);
-    onResize();
-    const rvEls = [...document.querySelectorAll('[data-rv]')];
-    this.io = new IntersectionObserver((ents) => ents.forEach(e => {
-      if (!e.isIntersecting) return;
-      const el = e.target;
-      setTimeout(() => { el.style.opacity = '1'; el.style.transform = 'translateY(0)'; }, +(el.dataset.rvd || 0));
-      this.io.unobserve(el);
-    }), { threshold: 0.05, rootMargin: '0px 0px -20px 0px' });
-    rvEls.forEach(el => this.io.observe(el));
-  }
-  componentWillUnmount() { this.io && this.io.disconnect(); this._offResize && this._offResize(); }
-  renderVals() {
-    const s = this.state;
-    return {
-      desk: s.w >= 800, mob: s.w < 800, menuOpen: s.menuOpen, menuClosed: !s.menuOpen,
-      toggleMenu: () => this.setState(st => ({ menuOpen: !st.menuOpen })),
-      ad: s.ad, isletme: s.isletme, tel: s.tel, sent: s.sent, notSent: !s.sent, err: s.err,
-      sentName: s.ad ? s.ad.split(' ')[0] : 'Teşekkürler',
-      onAd: (e) => this.setState({ ad: e.target.value }),
-      onIsletme: (e) => this.setState({ isletme: e.target.value }),
-      onTel: (e) => this.setState({ tel: e.target.value }),
-      submit: () => {
-        const st = this.state;
-        if (!st.ad.trim() || !st.isletme.trim() || !st.tel.trim()) { this.setState({ err: 'Lütfen üç alanı da doldurun.' }); return; }
-        const msg = 'Merhaba, geri arama talebi:\n• Ad: ' + st.ad.trim() + '\n• İşletme: ' + st.isletme.trim() + '\n• Telefon: ' + st.tel.trim();
-        window.open('https://wa.me/905019406704?text=' + encodeURIComponent(msg), '_blank');
-        this.setState({ sent: true, err: '' });
-      }
-    };
-  }
-}
-</script>
+  <script src="/marketing.js" defer></script>
 </body>
 </html>
