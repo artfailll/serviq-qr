@@ -1,20 +1,71 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Lock, Eye, EyeOff, UtensilsCrossed } from 'lucide-react'
 import { useBusinessId, useValue } from '../lib/store'
 
-// Oturum boyunca şifreyi hatırla (sekme kapanınca sıfırlanır)
+// Oturum boyunca girişi hatırla (sekme kapanınca sıfırlanır)
 const SESSION_KEY = 'sofra_admin_auth'
+const VERIFY_URL = '/.netlify/functions/verify-admin'
+
+// ─────────────────────────────────────────────────────────────
+// Şifre doğrulaması artık sunucuda (netlify/functions/verify-admin.js).
+// Eskiden şifre Firebase'de config/password altında duruyordu ve herkes
+// okuyabiliyordu — işletme kimliği QR'ın içinde olduğu için masaya oturan
+// biri paneli ele geçirebiliyordu.
+//
+// Bu işletmenin şifresi henüz sunucuya taşınmadıysa fonksiyon
+// { configured: false } döner ve eski yönteme geri düşeriz; böylece geçiş
+// sırasında hiçbir müşteri kilitli kalmaz.
+// ─────────────────────────────────────────────────────────────
+const probeCache = new Map()
+function probeServer(bizId) {
+  if (!probeCache.has(bizId)) {
+    probeCache.set(bizId, fetch(VERIFY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bizId, pin: '' }),
+    }).then((r) => r.json()).then((d) => !!d.configured).catch(() => false))
+  }
+  return probeCache.get(bizId)
+}
+
+export async function verifyAdminPin(bizId, pin) {
+  const r = await fetch(VERIFY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bizId, pin }),
+  })
+  return r.json()
+}
 
 // Yönetim oturum durumu — net 4 hâl:
-//   'loading' : config henüz yüklenmedi (panel AÇILMAMALI — yarış hatası buradan çıkıyordu)
+//   'loading' : durum henüz bilinmiyor (panel AÇILMAMALI — yarış hatası buradan çıkıyordu)
 //   'open'    : şifre kurulmamış → serbest giriş
 //   'authed'  : doğru şifreyle giriş yapılmış
 //   'locked'  : şifre var, giriş gerekiyor
 export function useAdminAuthState() {
   const bizId = useBusinessId()
+  const [onServer, setOnServer] = useState(null) // null = yoklanıyor
+
+  useEffect(() => {
+    if (!bizId) return
+    let alive = true
+    probeServer(bizId).then((v) => { if (alive) setOnServer(v) })
+    return () => { alive = false }
+  }, [bizId])
+
   // initial = undefined → "yükleniyor"u "şifre yok"tan ayırt edebilmek için
   const config = useValue(bizId ? `businesses/${bizId}/config` : null, undefined)
 
+  if (onServer === null) return 'loading'
+
+  if (onServer) {
+    try {
+      if (sessionStorage.getItem(SESSION_KEY) === `${bizId}:ok`) return 'authed'
+    } catch {}
+    return 'locked'
+  }
+
+  // ── Eski yol (şifre henüz taşınmamış işletmeler) ──
   if (config === undefined) return 'loading'
   const password = config?.password
   if (!password) return 'open'
@@ -40,26 +91,34 @@ export default function AdminLogin({ onSuccess }) {
   const [show, setShow] = useState(false)
   const [error, setError] = useState(false)
   const [shake, setShake] = useState(false)
+  const [busy, setBusy] = useState(false)
 
-  // Config henüz yüklenmediyse bekle
-  if (config === null) {
-    return (
-      <div className="min-h-screen grid place-items-center bg-ink-50">
-        <div className="h-8 w-8 rounded-full border-4 border-brand-200 border-t-brand-500 animate-spin" />
-      </div>
-    )
+  function reject() {
+    setError(true)
+    setShake(true)
+    setInput('')
+    setTimeout(() => setShake(false), 600)
+    setTimeout(() => setError(false), 2000)
   }
 
-  function attempt() {
-    if (input === correctPassword) {
-      setAdminAuth(bizId, correctPassword)
-      onSuccess()
-    } else {
-      setError(true)
-      setShake(true)
-      setInput('')
-      setTimeout(() => setShake(false), 600)
-      setTimeout(() => setError(false), 2000)
+  async function attempt() {
+    if (busy || !input) return
+    setBusy(true)
+    try {
+      // Önce sunucu doğrulaması; bu işletme taşınmamışsa eski yola düş
+      const res = await verifyAdminPin(bizId, input).catch(() => null)
+      if (res?.configured) {
+        if (res.ok) { setAdminAuth(bizId, 'ok'); onSuccess() } else { reject() }
+        return
+      }
+      if (correctPassword && input === correctPassword) {
+        setAdminAuth(bizId, correctPassword)
+        onSuccess()
+      } else {
+        reject()
+      }
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -98,6 +157,7 @@ export default function AdminLogin({ onSuccess }) {
                   value={input}
                   onChange={(e) => { setInput(e.target.value); setError(false) }}
                   onKeyDown={(e) => e.key === 'Enter' && attempt()}
+                  disabled={busy}
                   autoFocus
                   placeholder="••••••"
                   className={`inp pr-11 text-lg tracking-widest font-bold transition-colors
@@ -118,11 +178,11 @@ export default function AdminLogin({ onSuccess }) {
 
             <button
               onClick={attempt}
-              disabled={!input}
+              disabled={!input || busy}
               className="btn-primary w-full !py-3.5 text-base"
             >
               <Lock className="h-4.5 w-4.5" />
-              Giriş Yap
+              {busy ? 'Kontrol ediliyor…' : 'Giriş Yap'}
             </button>
           </div>
         </div>

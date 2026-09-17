@@ -38,12 +38,21 @@ function NoBusiness() {
 // Ana uygulama — businessId'yi context'e koyar
 function AppWithBusiness({ bizId }) {
   const [ready, setReady] = useState(false)
+  const [unknown, setUnknown] = useState(false)
 
   useEffect(() => {
-    ensureSeeded(bizId).then(() => setReady(true))
+    let alive = true
+    ensureSeeded(bizId).then((ok) => {
+      if (!alive) return
+      setUnknown(!ok)
+      setReady(true)
+    })
+    return () => { alive = false }
   }, [bizId])
 
   if (!ready) return <Loader />
+  // Böyle bir işletme açılmamış — sahte menü üretmek yerine hata göster
+  if (unknown) return <NoBusiness />
 
   return (
     <BusinessContext.Provider value={bizId}>

@@ -291,12 +291,26 @@ function readOnce(path) {
 //   • kategori + ürünleri (daha önce tohumlanmadıysa) yazar,
 //   • profil/masaları SADECE hiç yoksa varsayılanla doldurur.
 // Böylece müşterinin özel adı/rengi/masa sayısı korunur.
+// Tanımlı bir işletme mi? Kurulum betiği (yeni-musteri.cjs) her yeni müşteri
+// için önce menu/profile yazar — yani profil varsa işletme gerçekten açılmış
+// demektir.
+//
+// Bu kontrol olmadan, URL'deki ?isletme= değeri ne olursa olsun sıfırdan bir
+// "Lezzet Kafe" oluşuyordu. Sonuçları: QR'daki kimlikte tek harf hata → müşteri
+// sahte menü ve sahte fiyat görüp sipariş veriyor, sipariş hiçbir kasaya
+// düşmüyor; ayrıca URL'i değiştiren herkes veritabanında sınırsız çöp işletme
+// açabiliyordu.
 export async function ensureSeeded(bizId) {
   const base = `businesses/${bizId}/menu`
   const data = buildSeedData()
 
-  // 1) Menü içeriği: yalnızca daha önce tohumlanmadıysa
+  const profile = await readOnce(`${base}/profile`)
   const seededAt = await readOnce(`${base}/seededAt`)
+
+  // Ne profil ne de tohum izi var → böyle bir işletme açılmamış
+  if (!profile && !seededAt) return false
+
+  // 1) Menü içeriği: yalnızca daha önce tohumlanmadıysa
   if (!seededAt) {
     setValue(`${base}/categories`, data.categories)
     setValue(`${base}/products`, data.products)
@@ -304,7 +318,6 @@ export async function ensureSeeded(bizId) {
   }
 
   // 2) Profil: yalnızca hiç yoksa varsayılanı yaz (özel ayarı ezme!)
-  const profile = await readOnce(`${base}/profile`)
   if (!profile || !profile.name) {
     setValue(`${base}/profile`, data.profile)
   }
@@ -314,6 +327,8 @@ export async function ensureSeeded(bizId) {
   if (!tables || Object.keys(tables).length === 0) {
     setValue(`${base}/tables`, data.tables)
   }
+
+  return true
 }
 
 // Varsayılan hızlı notlar (kategori notu yoksa)

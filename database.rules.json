@@ -1,7 +1,70 @@
 {
   "rules": {
-    ".read": true,
-    ".write": true,
-    "_comment": "BASİT BAŞLANGIÇ KURALLARI — herkese açık okuma/yazma. Restoran içi kullanım için yeterlidir. Güvenliği artırmak isterseniz: menu yazımını yalnızca yöneticiye, orders/calls yazımını müşteriye açacak şekilde kısıtlayın ve Firebase Authentication ekleyin."
+    "businesses": {
+      "$bizId": {
+        "config": {
+          ".read": false,
+          ".write": "!data.exists()"
+        },
+
+        "menu": {
+          ".read": true,
+          "profile":    { ".write": "newData.exists()" },
+          "products":   { ".write": "newData.exists()" },
+          "categories": { ".write": "newData.exists()" },
+          "tables":     { ".write": "newData.exists()" },
+          "stats":      { ".write": true },
+          "i18n":       { ".write": true },
+          "seededAt":   { ".write": true }
+        },
+
+        "orders":   { ".read": true, ".write": true },
+        "calls":    { ".read": true, ".write": true },
+        "layout":   { ".read": true, ".write": true },
+        "feedback": { ".read": true, ".write": true },
+
+        "archive":   { ".read": true, "$day":  { ".write": true } },
+        "branches":  { ".read": true, "$id":   { ".write": true } },
+        "inventory": {
+          ".read": true,
+          "items":     { "$id": { ".write": true } },
+          "movements": { "$id": { ".write": true } }
+        },
+        "staff": {
+          ".read": true,
+          "members": { "$id": { ".write": true } },
+          "shifts":  { "$id": { ".write": true } }
+        },
+        "crm":     { ".read": true, "customers": { "$id": { ".write": true } } },
+        "finance": { ".read": true, "expenses":  { "$id": { ".write": true } } }
+      }
+    },
+
+    "_okubeni": [
+      "KÖK OKUMA/YAZMA KAPALI — /businesses.json ile tüm müşteri listesi çekilemez.",
+      "",
+      "1) config (yönetim şifresi) ARTIK OKUNAMAZ.",
+      "   Şifre Netlify ortam değişkenine taşındı (SERVIQ_ADMIN_PINS) ve",
+      "   netlify/functions/verify-admin.js tarafından doğrulanıyor.",
+      "   Eskiden config herkese açıktı; işletme kimliği her masadaki QR'ın",
+      "   içinde olduğu için masaya oturan biri şifreyi çekip paneli ele",
+      "   geçirebiliyordu.",
+      "   ÖNEMLİ: Bu kuralları yayınlamadan ÖNCE tüm işletmelerin şifresini",
+      "   Netlify'a taşıyın, yoksa taşınmamış işletmeler panele giremez.",
+      "",
+      "2) menu altındaki profile/products/categories/tables için",
+      "   \".write\": \"newData.exists()\" kuralı toplu SİLMEYİ engeller.",
+      "   Tek ürün eklenip düzenlenebilir, silinebilir; ama menünün tamamı",
+      "   tek istekle silinemez. Servis ortasında menüsü uçan müşteri senaryosu",
+      "   bu şekilde kapandı.",
+      "",
+      "3) HÂLÂ AÇIK OLAN: kimlik doğrulama olmadığı için, işletme kimliğini",
+      "   bilen biri tek tek ürün/fiyat düzenleyebilir. Bunu kapatmak için",
+      "   Firebase Authentication gerekiyor (personel girişi + auth.uid bazlı",
+      "   kurallar). Bir sonraki adım budur.",
+      "",
+      "4) orders/calls/layout tam yazılabilir kaldı — gün sonu (resetDay) bu",
+      "   düğümleri topluca siliyor."
+    ]
   }
 }
