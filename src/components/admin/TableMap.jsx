@@ -23,6 +23,44 @@ import QRCode from 'qrcode'
 
 const SITE = 'https://serviq.com.tr'
 
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+// QR'ın ortasına işletme adı + masa numarası yerleştirir.
+// Bunu yapabilmek için QR'ın "H" hata düzeltme seviyesinde üretilmesi şart:
+// H seviyesi kodun ~%30'u kapansa bile okunmasına izin verir, buradaki kutu
+// alanın ~%12'si — güvenli aralıkta.
+function brandQr(svg, bizName, tableLabel, brandColor) {
+  const m = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/)
+  if (!m) return svg
+  const size = Number(m[1])
+
+  const bw = size * 0.46
+  const bh = size * 0.27
+  const x = (size - bw) / 2
+  const y = (size - bh) / 2
+
+  const name = String(bizName || '').toLocaleUpperCase('tr-TR').slice(0, 20)
+  // Yazı kutuya sığsın diye font boyutu karakter sayısına göre küçülür
+  const nameFont = Math.min(bh * 0.30, (bw * 0.92) / Math.max(name.length * 0.58, 1))
+  const tableFont = bh * 0.40
+  const pad = size * 0.012
+
+  const overlay =
+    `<g shape-rendering="auto" font-family="'Plus Jakarta Sans',Helvetica,Arial,sans-serif">` +
+      `<rect x="${x - pad}" y="${y - pad}" width="${bw + pad * 2}" height="${bh + pad * 2}" ` +
+        `rx="${bh * 0.26}" fill="#ffffff"/>` +
+      `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="${bh * 0.22}" ` +
+        `fill="#ffffff" stroke="${brandColor}" stroke-width="${size * 0.011}"/>` +
+      `<text x="${size / 2}" y="${y + bh * 0.42}" text-anchor="middle" ` +
+        `font-size="${nameFont}" font-weight="800" fill="#1e293b">${esc(name)}</text>` +
+      `<text x="${size / 2}" y="${y + bh * 0.85}" text-anchor="middle" ` +
+        `font-size="${tableFont}" font-weight="900" fill="${brandColor}">${esc(tableLabel)}</text>` +
+    `</g>`
+
+  return svg.replace('</svg>', `${overlay}</svg>`)
+}
+
 async function printAllQRs(tables, bizId, profile) {
   const bizName = profile?.name || 'Restoran'
   const brandColor = profile?.brandColor || '#f97316'
@@ -30,12 +68,16 @@ async function printAllQRs(tables, bizId, profile) {
   // Her masa için QR SVG üret
   const items = await Promise.all(
     tables.map(async (t) => {
-      const url = `${SITE}/menu?isletme=${bizId}&masa=${t.no}`
-      const svg = await QRCode.toString(url, {
-        type: 'svg', width: 260, margin: 2,
+      // encodeURIComponent şart: işletme kimliğinde boşluk veya Türkçe harf
+      // olabiliyor ("CAFE SİNAN") — ham hâli bozuk bağlantı üretiyordu.
+      const url = `${SITE}/menu?isletme=${encodeURIComponent(bizId)}&masa=${encodeURIComponent(t.no)}`
+      const raw = await QRCode.toString(url, {
+        type: 'svg', width: 300, margin: 2,
+        errorCorrectionLevel: 'H',
         color: { dark: '#1e293b', light: '#ffffff' },
       })
-      return { no: t.no, name: t.name, svg }
+      const label = String(t.name || `Masa ${t.no}`).toLocaleUpperCase('tr-TR')
+      return { no: t.no, name: t.name, svg: brandQr(raw, bizName, label, brandColor) }
     })
   )
 
@@ -43,7 +85,7 @@ async function printAllQRs(tables, bizId, profile) {
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>${bizName} · QR Kodlar</title>
+<title>${esc(bizName)} · QR Kodlar</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;900&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -51,10 +93,9 @@ async function printAllQRs(tables, bizId, profile) {
   h1 { text-align: center; font-size: 22px; font-weight: 900; color: #1e293b; margin-bottom: 6px; }
   .sub { text-align: center; font-size: 13px; color: #94a3b8; margin-bottom: 24px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-  .card { background: #fff; border-radius: 20px; padding: 20px 16px 16px; text-align: center;
-          border: 2px solid #fed7aa; break-inside: avoid; }
-  .biz { font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 8px; }
-  .qr svg { width: 180px; height: 180px; }
+  .card { background: #fff; border-radius: 20px; padding: 16px 16px 14px; text-align: center;
+          border: 2px solid ${brandColor}33; break-inside: avoid; }
+  .qr svg { width: 200px; height: 200px; display: block; margin: 0 auto; }
   .badge { display: inline-block; background: ${brandColor}; color: #fff; font-size: 14px;
            font-weight: 900; padding: 5px 18px; border-radius: 50px; margin: 10px 0 8px; }
   .hint { font-size: 10px; color: #cbd5e1; font-weight: 600; }
@@ -66,7 +107,7 @@ async function printAllQRs(tables, bizId, profile) {
 </style>
 </head>
 <body>
-<h1>${bizName}</h1>
+<h1>${esc(bizName)}</h1>
 <p class="sub">Tüm masa QR kodları · serviq.com.tr · ${new Date().toLocaleDateString('tr-TR')}</p>
 <button class="no-print" onclick="window.print()" style="display:block;margin:0 auto 20px;background:${brandColor};color:#fff;border:none;padding:10px 28px;border-radius:50px;font-size:14px;font-weight:800;cursor:pointer;">
   🖨 Yazdır / PDF Olarak Kaydet
@@ -74,9 +115,8 @@ async function printAllQRs(tables, bizId, profile) {
 <div class="grid">
   ${items.map(it => `
   <div class="card">
-    <div class="biz">${bizName}</div>
     <div class="qr">${it.svg}</div>
-    <div class="badge">${it.name.toUpperCase()}</div>
+    <div class="badge">${esc(String(it.name || ('Masa ' + it.no)).toLocaleUpperCase('tr-TR'))}</div>
     <div class="hint">Kameranızla okutun · sipariş verin</div>
   </div>`).join('')}
 </div>
