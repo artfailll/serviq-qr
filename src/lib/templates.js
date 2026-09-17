@@ -642,6 +642,7 @@ export function getTemplate(profile) {
 // Vurgu rengi: işletme özel renk seçtiyse o, yoksa şablonun imza rengi.
 export function getAccent(profile, T) {
   const c = profile?.brandColor
-  if (c && c.toLowerCase() !== '#f97316') return c
+  if (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) && c.toLowerCase() !== '#f97316') return c
+  if (typeof c === 'string' && /^#[0-9a-f]{3}$/i.test(c)) return '#' + [...c.slice(1)].map(x => x + x).join('')
   return T.accent
 }

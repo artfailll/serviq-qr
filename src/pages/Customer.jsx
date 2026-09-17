@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
 import {
   Plus, Minus, BellRing, ReceiptText, Trash2, Check, Wifi, X,
@@ -41,6 +42,8 @@ const CALL_KEY = (biz, table) => `sofra_lastcall_${biz}_${table}`
 const CALL_COOLDOWN_MS = 30000
 
 export default function Customer() {
+  const reduceMotion = useReducedMotion()
+  const categoryMotionId = useId()
   const bizId    = useBusinessId()
   const [params] = useSearchParams()
   const masaNo   = params.get('masa') || '?'
@@ -162,10 +165,11 @@ export default function Customer() {
   }, [stats])
 
   const searchResults = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const normalize = value => (value || '').toLocaleLowerCase(lang === 'tr' ? 'tr-TR' : lang)
+    const q = normalize(query.trim())
     if (!q) return null
     return products.filter(p2 =>
-      trName(p2)?.toLowerCase().includes(q) || trDesc(p2)?.toLowerCase().includes(q) || p2.name?.toLowerCase().includes(q))
+      normalize(trName(p2)).includes(q) || normalize(trDesc(p2)).includes(q) || normalize(p2.name).includes(q))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, products, i18nCache, lang])
 
@@ -202,7 +206,7 @@ export default function Customer() {
     }, 1000)
     return () => { io.disconnect(); clearTimeout(safety) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categories.length, products.length, query, lang])
+  }, [categories.length, products.length, query, lang, T.id])
 
   // ── Sipariş takibi ──
   const [myIds, setMyIds] = useState(() => { try { return JSON.parse(localStorage.getItem(MYORD_KEY(bizId)) || '[]') } catch { return [] } })
@@ -220,13 +224,14 @@ export default function Customer() {
   })
 
   function addToCart(product, qty, note, unitPrice, label) {
+    if (!open || !product.available) return
     const name = label || product.name
     const price = unitPrice ?? product.price
     // Kampanya menüsü: mutfak fişinde içerik görünsün diye özel not yoksa
     // ürünün "İçerir: ..." açıklaması otomatik not olarak taşınır.
     const finalNote = (note ? note.trim() : '') || (product.comboItems?.length ? product.desc || '' : '')
     setCart(prev => {
-      const idx = prev.findIndex(i => i.productId === product.id && i.note === finalNote && i.name === name)
+      const idx = prev.findIndex(i => i.productId === product.id && i.note === finalNote && i.name === name && i.price === price)
       if (idx >= 0) { const c=[...prev]; c[idx]={...c[idx],qty:c[idx].qty+qty}; return c }
       return [...prev, { productId: product.id, name, price, image: product.image, qty, note: finalNote }]
     })
@@ -302,10 +307,13 @@ export default function Customer() {
     combo: !!p2.comboItems?.length,
   })
 
-  const cardProps = { T, accent, rgb, t, trName, trDesc, badge, onOpen: (p2) => p2.available && setDetail(p2), onQuickAdd: (p2) => addToCart(p2, 1, '') }
+  const cardProps = { T, accent, rgb, t, trName, trDesc, badge, onOpen: (p2) => p2.available && setDetail(p2), onQuickAdd: (p2) => {
+    if (p2.variants?.length || p2.extras?.length) setDetail(p2)
+    else addToCart(p2, 1, '')
+  } }
 
   return (
-    <div dir={isRTL ? 'rtl' : 'ltr'} style={{ background:T.bg, minHeight:'100vh', paddingBottom:170, color:T.text, fontFamily:B, colorScheme:T.dark ? 'dark' : 'light' }}>
+    <div className="customer-menu" dir={isRTL ? 'rtl' : 'ltr'} style={{ background:T.bg, minHeight:'100vh', paddingBottom:170, color:T.text, fontFamily:B, colorScheme:T.dark ? 'dark' : 'light' }}>
 
       {/* ── HERO ── */}
       <Hero T={T} accent={accent} rgb={rgb} profile={profile} initial={initial}
@@ -328,15 +336,16 @@ export default function Customer() {
             {categories.map(c => {
               const active = activeCat === c.id
               return (
-                <button key={c.id} data-cat={c.id} onClick={() => scrollToCat(c.id)} style={{
+                <button key={c.id} data-cat={c.id} aria-current={active ? 'true' : undefined} onClick={() => scrollToCat(c.id)} style={{
+                  position:'relative', isolation:'isolate', minHeight:40,
                   flexShrink:0, borderRadius: T.cardLayout==='editorial' ? 4 : 999,
                   padding:'7px 18px', fontSize:13, fontWeight:700, fontFamily:B,
-                  border: active ? 'none' : `1px solid ${T.tabBorder}`,
-                  background: active ? accent : 'transparent',
+                  border: `1px solid ${active ? 'transparent' : T.tabBorder}`,
+                  background: 'transparent',
                   color: active ? '#fff' : T.tabText,
                   boxShadow: active ? `0 4px 16px rgba(${rgb},.35)` : 'none',
                   cursor:'pointer', whiteSpace:'nowrap', transition:'background .18s,color .18s',
-                }}>{trCat(c)}</button>
+                }}>{active && <motion.span layoutId={categoryMotionId} transition={reduceMotion ? { duration:0 } : { type:'spring', stiffness:380, damping:34 }} style={{ position:'absolute', inset:0, borderRadius:'inherit', background:accent, zIndex:-1 }} />}{trCat(c)}</button>
               )
             })}
           </nav>
@@ -497,7 +506,10 @@ export default function Customer() {
               <p style={{ color:T.textMuted, fontWeight:800, fontSize:12, textTransform:'uppercase', letterSpacing:.8, marginBottom:10 }}>{t('upsell')}</p>
               <div style={{ display:'flex', gap:10, overflowX:'auto', scrollbarWidth:'none', paddingBottom:4 }}>
                 {upsell.map(p2 => (
-                  <button key={p2.id} onClick={() => { addToCart(p2, 1, ''); setCartOpen(true) }} style={{
+                  <button key={p2.id} onClick={() => {
+                    if (p2.variants?.length || p2.extras?.length) { setCartOpen(false); setDetail(p2) }
+                    else { addToCart(p2, 1, ''); setCartOpen(true) }
+                  }} style={{
                     flexShrink:0, width:130, background:T.surface, border:`1px solid ${T.surfaceBorder}`,
                     borderRadius:14, overflow:'hidden', cursor:'pointer', textAlign: isRTL?'right':'left', padding:0 }}>
                     {p2.image && <div style={{ height:64, background:T.inputBg }}><ProductImage src={p2.image} alt="" className="w-full h-full object-cover" /></div>}
@@ -516,7 +528,7 @@ export default function Customer() {
               <span style={{ color:T.textMuted, fontWeight:600, fontSize:14 }}>{t('total')}</span>
               <span style={{ color:T.text, fontWeight:900, fontSize:24, fontFamily:D }}>{money(cartTotal)}</span>
             </div>
-            <button onClick={confirmOrder} disabled={!open} style={{
+            <button onClick={confirmOrder} disabled={!open || !cart.length} style={{
               width:'100%', padding:'16px', borderRadius:16, border:'none',
               background: open ? `linear-gradient(135deg,${accent},rgba(${rgb},.75))` : T.inputBg,
               boxShadow: open ? `0 8px 24px rgba(${rgb},.4)` : 'none',
@@ -559,7 +571,7 @@ export default function Customer() {
       )}
 
       {toast && (
-        <div style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:60, pointerEvents:'none', background:accent, borderRadius:999, padding:'10px 20px', color:'#fff', fontSize:13, fontWeight:700, whiteSpace:'nowrap', boxShadow:`0 8px 28px rgba(${rgb},.5)`, animation:'slideD .25s ease both', fontFamily:B }}>{toast}</div>
+        <div role="status" style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:60, pointerEvents:'none', background:accent, borderRadius:20, padding:'10px 20px', color:'#fff', fontSize:13, fontWeight:700, maxWidth:'calc(100vw - 32px)', width:'max-content', overflowWrap:'anywhere', boxShadow:`0 8px 28px rgba(${rgb},.5)`, animation:'slideD .25s ease both', fontFamily:B }}>{toast}</div>
       )}
 
       <style>{`
@@ -574,6 +586,11 @@ export default function Customer() {
         @keyframes pulseSoft{0%,100%{box-shadow:0 6px 24px rgba(0,0,0,.25)}50%{box-shadow:0 6px 32px rgba(0,0,0,.45)}}
         .anim-card{opacity:0;transform:translateY(18px);transition:opacity .5s cubic-bezier(.22,.61,.36,1),transform .5s cubic-bezier(.22,.61,.36,1)}
         .anim-card.in{opacity:1;transform:none}
+        .customer-menu .anim-card{min-width:0;overflow-wrap:anywhere}
+        .customer-menu button:focus-visible,.customer-menu input:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+        .customer-menu [data-cartbar]{padding-bottom:max(14px,env(safe-area-inset-bottom))!important}
+        @media(hover:hover){.customer-menu .anim-card.in:not(:disabled):hover{transform:translateY(-3px)}}
+        @media(prefers-reduced-motion:reduce){.customer-menu *{animation:none!important;scroll-behavior:auto!important}.customer-menu .anim-card{transform:none!important}}
         @media(prefers-reduced-motion:reduce){.anim-card{opacity:1!important;transform:none!important;transition:none!important}}
         .brut-card{transition:transform .12s ease, box-shadow .12s ease}
         .brut-card:active{transform:translate(3px,3px);box-shadow:1px 1px 0 #111 !important}
@@ -1046,7 +1063,7 @@ function listStyle(T) {
     const gap = T.cardLayout === 'bento' ? 10 : 12
     // alignItems:'start' şart — yoksa grid, fotoğrafsız (daha kısa) kartları
     // komşu satırın boyuna zorla uzatır ve altta çirkin boş alan bırakır.
-    return { display:'grid', gridTemplateColumns:'1fr 1fr', gap, gridAutoFlow:'dense', alignItems:'start' }
+    return { display:'grid', gridTemplateColumns:'repeat(2,minmax(0,1fr))', gap, gridAutoFlow:'dense', alignItems:'start' }
   }
   const gap = T.cardLayout === 'editorial' || T.cardLayout === 'mono' || T.cardLayout === 'retro'
     || T.cardLayout === 'executive' || T.cardLayout === 'scandi' || T.cardLayout === 'architectural' ? 0
@@ -1702,18 +1719,38 @@ function LangSwitch({ lang, setLang, T, accent, busy }) {
 
 /* ══════════ Bottom sheet ══════════ */
 function Sheet({ children, onClose, title, T, D }) {
+  const panel = useRef(null)
+  const close = useRef(onClose)
+  close.current = onClose
+  const titleId = useId()
+  useEffect(() => {
+    const previous = document.activeElement
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const focusable = () => [...panel.current.querySelectorAll('button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),a[href],[tabindex="0"]')].filter(el => el.getClientRects().length)
+    focusable()[0]?.focus()
+    const keydown = event => {
+      if (event.key === 'Escape') { event.preventDefault(); close.current(); return }
+      if (event.key !== 'Tab') return
+      const elements = focusable(), first = elements[0], last = elements.at(-1)
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+    }
+    document.addEventListener('keydown', keydown)
+    return () => { document.body.style.overflow = overflow; document.removeEventListener('keydown', keydown); previous?.focus?.() }
+  }, [])
   return (
     <div style={{ position:'fixed', inset:0, zIndex:50, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
       <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,.6)', backdropFilter:'blur(8px)' }} onClick={onClose}/>
-      <div style={{ position:'relative', width:'100%', maxWidth:560, background:T.sheet, borderRadius:'24px 24px 0 0', maxHeight:'92vh', display:'flex', flexDirection:'column', border:`1px solid ${T.surfaceBorder}`, boxShadow:'0 -20px 60px rgba(0,0,0,.3)', animation:'slideU .28s cubic-bezier(.33,1,.68,1)' }}>
+      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ position:'relative', width:'100%', maxWidth:560, background:T.sheet, borderRadius:'24px 24px 0 0', maxHeight:'92dvh', display:'flex', flexDirection:'column', border:`1px solid ${T.surfaceBorder}`, boxShadow:'0 -20px 60px rgba(0,0,0,.3)', animation:'slideU .28s cubic-bezier(.33,1,.68,1)' }}>
         <div style={{ display:'flex', justifyContent:'center', padding:'12px 0 4px' }}>
           <div style={{ width:36, height:4, borderRadius:99, background:T.divider }}/>
         </div>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'4px 20px 12px' }}>
-          <h3 style={{ color:T.text, fontWeight:800, fontSize:17, margin:0, fontFamily:D }}>{title}</h3>
-          <button onClick={onClose} style={{ width:32, height:32, borderRadius:'50%', background:T.inputBg, border:'none', color:T.textMuted, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}><X size={15}/></button>
+          <h3 id={titleId} style={{ color:T.text, fontWeight:800, fontSize:17, margin:0, fontFamily:D, overflowWrap:'anywhere' }}>{title}</h3>
+          <button onClick={onClose} aria-label="Kapat" style={{ width:44, height:44, flexShrink:0, borderRadius:'50%', background:T.inputBg, border:'none', color:T.textMuted, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}><X size={15}/></button>
         </div>
-        <div style={{ overflowY:'auto', padding:'0 20px 32px', flex:1 }}>{children}</div>
+        <div style={{ overflowY:'auto', overscrollBehavior:'contain', padding:'0 20px max(32px,env(safe-area-inset-bottom))', flex:1 }}>{children}</div>
       </div>
     </div>
   )
