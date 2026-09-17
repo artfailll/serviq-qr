@@ -88,6 +88,7 @@ export function spawnWaiter({ from, to, color = '#c68a4a', strokeWidth = 2.2, on
 // Tıklanan butondan sepet çubuğuna (varsa) koşturur; sepet henüz boşsa
 // (çubuk daha render edilmemişse) ekranın alt-orta noktasını hedefler.
 export function runWaiterToCart(e, color, onArrive) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { onArrive?.(); return }
   const btnRect = e.currentTarget.getBoundingClientRect()
   const from = { x: btnRect.left + btnRect.width / 2, y: btnRect.top + btnRect.height / 2 }
   const cartEl = document.querySelector('[data-cartbar]')
