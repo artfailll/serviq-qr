@@ -1,5 +1,39 @@
 (() => {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const story = document.querySelector('[data-story]');
+  if (story && !reduced) {
+    const chapters = [...story.querySelectorAll('.story-chapters article')];
+    const faces = [...story.querySelectorAll('.story-face')];
+    const buttons = [...story.querySelectorAll('.story-steps button')];
+    document.body.classList.add('story-ready');
+    let frame = 0;
+    let active = -1;
+    const update = () => {
+      frame = 0;
+      const rect = story.getBoundingClientRect();
+      const progress = Math.max(0, Math.min(1, -rect.top / Math.max(1, rect.height - innerHeight)));
+      const index = Math.min(2, Math.floor(progress * 3));
+      if (index !== active) {
+        active = index;
+        chapters.forEach((el, i) => el.classList.toggle('is-current', i === index));
+        faces.forEach((el, i) => { el.classList.toggle('is-current', i === index); el.setAttribute('aria-hidden', String(i !== index)); });
+        buttons.forEach((el, i) => el.setAttribute('aria-pressed', String(i === index)));
+      }
+      story.style.setProperty('--story-x', `${22 - progress * 28}deg`);
+      story.style.setProperty('--story-y', `${Math.sin(progress * Math.PI * 2) * 24}deg`);
+      story.style.setProperty('--story-z', `${-9 + progress * 18}deg`);
+      story.style.setProperty('--story-scale', String(.91 + Math.sin(progress * Math.PI) * .09));
+      story.style.setProperty('--disc-turn', `${progress * 180}deg`);
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    addEventListener('scroll', schedule, { passive: true });
+    addEventListener('resize', schedule, { passive: true });
+    buttons.forEach((button, i) => button.addEventListener('click', () => {
+      const top = story.getBoundingClientRect().top + scrollY;
+      scrollTo({ top: top + (story.offsetHeight - innerHeight) * ((i + .4) / 3), behavior: 'smooth' });
+    }));
+    update();
+  }
   const nav = document.querySelector('.site-nav');
   const toggle = document.querySelector('[data-menu-toggle]');
   const mobileMenu = document.querySelector('[data-mobile-menu]');
@@ -80,7 +114,7 @@
       const target = `https://wa.me/905019406704?text=${encodeURIComponent(message)}`;
       const success = form.querySelector('.form-success');
       if (success) success.classList.add('is-visible');
-      window.setTimeout(() => window.open(target, '_blank', 'noopener'), 450);
+      window.open(target, '_blank', 'noopener');
     });
   }
 })();
