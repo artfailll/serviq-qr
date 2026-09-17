@@ -13,10 +13,12 @@ import { FIREBASE_ENABLED, db as fdb } from '../firebase'
 import {
   ref,
   onValue,
+  get as fGet,
   push as fPush,
   set as fSet,
   update as fUpdate,
   remove as fRemove,
+  runTransaction as fTransaction,
   serverTimestamp,
 } from 'firebase/database'
 
@@ -47,6 +49,14 @@ const firebaseAdapter = {
   },
   remove(path) {
     return fRemove(ref(fdb, path))
+  },
+  async read(path) {
+    const snap = await fGet(ref(fdb, path))
+    return snap.val()
+  },
+  async transact(path, fn) {
+    const res = await fTransaction(ref(fdb, path), (cur) => fn(cur))
+    return res.committed ? res.snapshot.val() : null
   },
 }
 
@@ -166,6 +176,20 @@ const localAdapter = {
     notifyAll()
     broadcastChange()
   },
+  async read(path) {
+    return getAtPath(readTree(), path)
+  },
+  // Firebase runTransaction ile aynı sözleşme: fn undefined döndürürse işlem
+  // iptal edilir. Tek JS iş parçacığında oku-değiştir-yaz atomiktir.
+  async transact(path, fn) {
+    const tree = readTree()
+    const next = fn(getAtPath(tree, path))
+    if (next === undefined) return null
+    writeTree(setAtPath(tree, path, next))
+    notifyAll()
+    broadcastChange()
+    return next
+  },
 }
 
 // ============================================================
@@ -178,6 +202,10 @@ export const pushItem = (path, value) => adapter.push(path, value)
 export const setValue = (path, value) => adapter.set(path, value)
 export const updateValue = (path, value) => adapter.update(path, value)
 export const removeValue = (path) => adapter.remove(path)
+export const readValue = (path) => adapter.read(path)
+// Oku-değiştir-yaz'ı tek adımda yapar. Stok düşümü gibi sayaç güncellemeleri
+// eşzamanlı iki siparişte birbirini ezmesin diye bunu kullanır.
+export const transactValue = (path, fn) => adapter.transact(path, fn)
 
 // Bir nesne haritasını ({key: item}) diziye çevirir, isteğe bağlı sıralama
 export function mapToList(obj, sortBy) {

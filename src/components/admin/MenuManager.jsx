@@ -4,7 +4,7 @@ import { fileToCompressedDataURL, urlToCompressedDataURL } from '../../lib/image
 import {
   useCategories, useProducts,
   addProduct, updateProduct, removeProduct, toggleProduct,
-  addCategory, useBusinessId,
+  addCategory, useBusinessId, useInventory, normalizeRecipe, INVENTORY_UNITS, useProfile,
 } from '../../lib/store'
 import { subscribe } from '../../lib/db'
 import { money } from '../../lib/format'
@@ -13,7 +13,7 @@ import { PRODUCT_TAGS, ALLERGENS } from '../../lib/seed'
 
 const empty = {
   name: '', desc: '', price: '', cost: '', image: '', categoryId: '', available: true, featured: false, tags: [],
-  gram: '', kalori: '', allergens: [], alkol: false, domuz: false, icerik: '',
+  gram: '', kalori: '', allergens: [], alkol: false, domuz: false, icerik: '', recipe: [],
 }
 
 const comboEmpty = { name: '', desc: '', price: '', categoryId: '', items: [] }
@@ -22,6 +22,9 @@ export default function MenuManager() {
   const bizId      = useBusinessId()
   const categories = useCategories(bizId)
   const products   = useProducts(bizId)
+  const inventory  = useInventory(bizId)
+  // Stok takibi kapalıysa reçete alanı hiç gösterilmez (İşletme Profili'nden açılır).
+  const stockOn    = useProfile(bizId).stockTracking !== false
 
   const [editing, setEditing]   = useState(null)
   const [open, setOpen]         = useState(false)
@@ -227,17 +230,29 @@ export default function MenuManager() {
     return g
   }, [categories, products])
 
+  // Reçetedeki malzemelerin birim maliyeti × miktar — porsiyon maliyetini
+  // elle girmek yerine stok kartlarından hesaplatmak için.
+  const recipeCost = useMemo(() => {
+    if (!editing?.recipe?.length) return 0
+    const cost = editing.recipe.reduce((sum, r) => {
+      const item = inventory.find(x => x.id === r.itemId)
+      return sum + (Number(item?.cost) || 0) * (Number(r.qty) || 0)
+    }, 0)
+    return Math.round(cost * 100) / 100
+  }, [editing, inventory])
+
   function openNew() { setEditing({ ...empty, categoryId: categories[0]?.id || '' }); setOpen(true) }
-  function openEdit(p) { setEditing({ ...p }); setOpen(true) }
+  function openEdit(p) { setEditing({ ...empty, ...p }); setOpen(true) }
   function save() {
     if (!editing.name || !editing.categoryId) return
-    // Boş varyant/ekstra satırlarını temizle
+    // Boş varyant/ekstra/reçete satırlarını temizle
     const clean = {
       ...editing,
       variants: (editing.variants || []).filter(v => v.name?.trim() && Number(v.price) > 0)
         .map(v => ({ name: v.name.trim(), price: Number(v.price) })),
       extras: (editing.extras || []).filter(e => e.name?.trim())
         .map(e => ({ name: e.name.trim(), price: Number(e.price) || 0 })),
+      recipe: normalizeRecipe(editing.recipe),
     }
     if (clean.id) {
       const { id, ...patch } = clean
@@ -492,6 +507,90 @@ export default function MenuManager() {
                 </button>
               </div>
             </Field>
+
+            {/* Reçete — satışta stoktan otomatik düşülecek malzemeler */}
+            {stockOn && <Field label="Reçete · otomatik stok düşümü (isteğe bağlı)">
+              <p className="text-xs text-ink-400 -mt-1 mb-2">
+                Bu üründen 1 adet satıldığında stoktan ne düşsün? Tanımlarsan sipariş girilir girilmez
+                stok otomatik azalır, iptal edilirse geri yüklenir.
+              </p>
+              {inventory.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-ink-200 bg-ink-50 p-4 text-center">
+                  <p className="text-sm font-semibold text-ink-600">Önce stok kartı eklemelisin</p>
+                  <p className="mt-1 text-xs text-ink-400">
+                    Yönetim → İşletme OS → Stok &amp; Maliyet sekmesinden malzemelerini tanımla,
+                    sonra buradan reçeteye bağla.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {(editing.recipe || []).map((r, i) => {
+                    const item = inventory.find(x => x.id === r.itemId)
+                    const unit = INVENTORY_UNITS.find(u => u.key === item?.unit)?.label || item?.unit || ''
+                    return (
+                      <div key={i} className="flex gap-2">
+                        <select
+                          className="inp flex-1"
+                          value={r.itemId || ''}
+                          onChange={e => setEditing(ed => {
+                            const a = [...(ed.recipe || [])]; a[i] = { ...a[i], itemId: e.target.value }
+                            return { ...ed, recipe: a }
+                          })}
+                        >
+                          <option value="">Malzeme seç…</option>
+                          {inventory.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+                        </select>
+                        <div className="relative w-32 shrink-0">
+                          <input
+                            type="number" min="0" step="0.001" className="inp w-full !pr-12"
+                            value={r.qty ?? ''} placeholder="Miktar"
+                            onChange={e => setEditing(ed => {
+                              const a = [...(ed.recipe || [])]; a[i] = { ...a[i], qty: e.target.value }
+                              return { ...ed, recipe: a }
+                            })}
+                          />
+                          {unit && (
+                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-ink-400">
+                              {unit}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditing(ed => ({ ...ed, recipe: (ed.recipe || []).filter((_, x) => x !== i) }))}
+                          className="btn-ghost h-10 w-10 !p-0 rounded-full text-red-500 shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setEditing(ed => ({ ...ed, recipe: [...(ed.recipe || []), { itemId: '', qty: '' }] }))}
+                    className="btn-outline w-full text-sm"
+                  >
+                    <Plus className="h-4 w-4" /> Malzeme Ekle
+                  </button>
+                  {recipeCost > 0 && (
+                    <p className="text-xs text-ink-500">
+                      Reçete maliyeti: <strong className="text-ink-700">{money(recipeCost)}</strong>
+                      {Number(editing.price) > 0 && (
+                        <> · brüt kâr <strong className="text-green-600">{money(Number(editing.price) - recipeCost)}</strong>
+                          {' '}(%{Math.round((1 - recipeCost / Number(editing.price)) * 100)})</>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEditing(ed => ({ ...ed, cost: recipeCost }))}
+                        className="ml-2 font-bold text-brand-600 hover:underline cursor-pointer"
+                      >
+                        porsiyon maliyetine yaz
+                      </button>
+                    </p>
+                  )}
+                </div>
+              )}
+            </Field>}
 
             <Field label="Diyet tercihleri (vitrin etiketleri)">
               <div className="flex flex-wrap gap-2">

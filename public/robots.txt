@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Uygulama ekranları (kasa/yönetim/garson/müşteri menüsü) index.html üzerinden
+# servis edilir ve orada "noindex" meta etiketi vardır. Burada engellemiyoruz ki
+# Google sayfayı gezip noindex'i görebilsin.
+
+Sitemap: https://serviq.com.tr/sitemap.xml

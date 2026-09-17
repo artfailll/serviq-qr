@@ -1,12 +1,14 @@
 // React tarafı: gerçek zamanlı abonelik hook'ları + tüm yazma aksiyonları
 // Multi-tenant: tüm veriler /businesses/{businessId}/... altına yazılır.
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import {
   subscribe,
   pushItem,
   setValue,
   updateValue,
   removeValue,
+  readValue,
+  transactValue,
   mapToList,
   now,
 } from './db'
@@ -107,6 +109,22 @@ export function adjustInventory(bizId, id, delta, reason = 'Manuel stok düzeltm
   const key = pushItem(p(bizId, 'inventory/movements'), { itemId: id, delta: amount, reason: String(reason).slice(0, 160), createdAt: now() })
   return key
 }
+// Elle stok giriş/çıkışı — stoğu ve hareket kaydını tek adımda, otomatik
+// düşümle yarışmayacak şekilde günceller.
+export async function adjustStockManual(bizId, id, delta, reason) {
+  const amount = Number(delta) || 0
+  if (!amount) return null
+  let before = 0
+  const next = await transactValue(p(bizId, `inventory/items/${id}/stock`), (cur) => {
+    before = Number(cur) || 0
+    return Math.round(Math.max(0, before + amount) * 1000) / 1000
+  })
+  if (next === null) return null
+  const actual = Math.round((next - before) * 1000) / 1000
+  if (!actual) return null
+  updateValue(p(bizId, `inventory/items/${id}`), { updatedAt: now() })
+  return adjustInventory(bizId, id, actual, reason || (actual > 0 ? 'Stok girişi' : 'Stok çıkışı'))
+}
 export const addStaffMember = (bizId, member) => {
   const name = String(member.name || '').trim()
   if (!name) return null
@@ -114,12 +132,36 @@ export const addStaffMember = (bizId, member) => {
 }
 export const updateStaffMember = (bizId, id, patch) => updateValue(p(bizId, `staff/members/${id}`), { ...patch, updatedAt: now() })
 export const removeStaffMember = (bizId, id) => removeValue(p(bizId, `staff/members/${id}`))
-export const startShift = (bizId, staffId, note = '') => pushItem(p(bizId, 'staff/shifts'), { staffId, note: String(note).slice(0, 160), startedAt: now(), status: 'open' })
+// Aynı personele ikinci bir açık vardiya açılmaz (çift tıklama koruması).
+export async function startShift(bizId, staffId, note = '') {
+  if (!staffId) return null
+  const all = await readValue(p(bizId, 'staff/shifts'))
+  const open = Object.entries(all || {}).find(([, s]) => s?.staffId === staffId && s?.status === 'open')
+  if (open) return open[0]
+  return pushItem(p(bizId, 'staff/shifts'), {
+    staffId, note: String(note).slice(0, 160), startedAt: now(), status: 'open',
+  })
+}
 export const endShift = (bizId, id) => updateValue(p(bizId, `staff/shifts/${id}`), { status: 'closed', endedAt: now() })
-export const upsertCustomer = (bizId, customer) => {
-  const id = customer.id || pushItem(p(bizId, 'crm/customers'), { name: String(customer.name || '').slice(0, 100), phone: String(customer.phone || '').slice(0, 30), points: Math.max(0, Number(customer.points) || 0), visits: Math.max(0, Number(customer.visits) || 0), spend: Math.max(0, Number(customer.spend) || 0), consent: customer.consent !== false, createdAt: now(), updatedAt: now() })
-  if (customer.id) updateValue(p(bizId, `crm/customers/${customer.id}`), { ...customer, updatedAt: now() })
-  return id
+// Müşteri kartı yazar/günceller. Anahtar telefondan (yoksa isimden) türetilir,
+// böylece elle eklenen kart ile siparişten gelen kayıt aynı yerde birleşir.
+export function upsertCustomer(bizId, customer) {
+  const key = customer.id || customerKey(customer)
+  if (!key) return null
+  transactValue(p(bizId, `crm/customers/${key}`), (cur) => {
+    const base = cur || { visits: 0, spend: 0, points: 0, createdAt: now() }
+    return {
+      ...base,
+      name: String(customer.name ?? base.name ?? '').slice(0, 100),
+      phone: String(customer.phone ?? base.phone ?? '').slice(0, 30),
+      points: Math.max(0, Number(customer.points ?? base.points) || 0),
+      visits: Math.max(0, Number(customer.visits ?? base.visits) || 0),
+      spend: Math.max(0, Number(customer.spend ?? base.spend) || 0),
+      consent: customer.consent !== false,
+      updatedAt: now(),
+    }
+  })
+  return key
 }
 export const addBranch = (bizId, branch) => {
   const name = String(branch.name || '').trim()
@@ -128,6 +170,204 @@ export const addBranch = (bizId, branch) => {
 }
 export const updateBranch = (bizId, id, patch) => updateValue(p(bizId, `branches/${id}`), { ...patch, updatedAt: now() })
 export const removeBranch = (bizId, id) => removeValue(p(bizId, `branches/${id}`))
+
+// ============================================================
+//  REÇETE → STOK KÖPRÜSÜ
+//  Ürünün reçetesi (recipe: [{itemId, qty}]) hangi stok kaleminden ne kadar
+//  tükettiğini söyler. Sipariş girilir girilmez stok otomatik düşer, sipariş
+//  iptal edilirse geri yüklenir. Reçetesi olmayan ürün stoğa dokunmaz —
+//  yani özellik kademeli açılabilir, eski menü çalışmaya devam eder.
+// ============================================================
+const round3 = (n) => Math.round((Number(n) || 0) * 1000) / 1000
+
+// Sipariş satırlarını { stokKalemiId: toplamMiktar } haritasına çevirir.
+// Kombo ürünler içerdikleri ürünlerin reçetesine açılır (özyineleme sınırlı).
+export function recipeNeeds(orderItems, products) {
+  const byId = {}
+  products.forEach((prod) => { byId[prod.id] = prod })
+  const needs = {}
+
+  function add(productId, multiplier, depth) {
+    const prod = byId[productId]
+    if (!prod || multiplier <= 0 || depth > 3) return
+    if (prod.comboItems?.length) {
+      prod.comboItems.forEach((ci) =>
+        add(ci.productId, multiplier * (Number(ci.qty) || 1), depth + 1))
+    }
+    ;(prod.recipe || []).forEach((r) => {
+      const qty = Number(r.qty) || 0
+      if (!r.itemId || qty <= 0) return
+      needs[r.itemId] = round3((needs[r.itemId] || 0) + qty * multiplier)
+    })
+  }
+
+  ;(orderItems || []).forEach((it) => add(it.productId, Number(it.qty) || 0, 0))
+  return needs
+}
+
+// Stoğu düşer (sign -1) ya da geri yükler (sign +1), her kalem için
+// inventory/movements'a iz bırakır. Stok eksiye düşmez; gerçekte uygulanan
+// fark kaydedilir, böylece hareket defteri stokla tutarlı kalır.
+async function applyStock(bizId, orderItems, { sign, reason, orderId }) {
+  try {
+    const [productsRaw, itemsRaw] = await Promise.all([
+      readValue(p(bizId, 'menu/products')),
+      readValue(p(bizId, 'inventory/items')),
+    ])
+    const needs = recipeNeeds(orderItems, mapToList(productsRaw))
+    // Yalnızca gerçekten var olan stok kartlarına dokun — silinmiş kalem
+    // reçetede kalmış olabilir.
+    const ids = Object.keys(needs).filter((id) => itemsRaw && itemsRaw[id])
+    if (!ids.length) return []
+
+    const applied = []
+    await Promise.all(ids.map(async (itemId) => {
+      const want = sign * needs[itemId]
+      let before = 0
+      const next = await transactValue(
+        p(bizId, `inventory/items/${itemId}/stock`),
+        (cur) => { before = Number(cur) || 0; return round3(Math.max(0, before + want)) },
+      )
+      if (next === null) return
+      const delta = round3(next - before)
+      if (!delta) return
+      updateValue(p(bizId, `inventory/items/${itemId}`), { updatedAt: now() })
+      pushItem(p(bizId, 'inventory/movements'), {
+        itemId, delta, reason: String(reason).slice(0, 160),
+        orderId: orderId || null, auto: true, createdAt: now(),
+      })
+      applied.push({ itemId, delta, stock: next })
+    }))
+    return applied
+  } catch { return [] }
+}
+
+// İşletme stok takibini kapatmışsa (profil ayarı) sipariş stoğa hiç dokunmaz.
+// Ayar yoksa açık kabul edilir — mevcut işletmelerin davranışı değişmez.
+async function stockTrackingOn(bizId) {
+  try {
+    return (await readValue(p(bizId, 'menu/profile/stockTracking'))) !== false
+  } catch { return true }
+}
+
+// Sipariş → stok düşümü. Aynı sipariş iki kez düşmesin diye orders/{id}/stockApplied
+// bayrağı işlem (transaction) ile kapılır.
+export async function consumeOrderStock(bizId, orderId, items, tableNo) {
+  if (!(await stockTrackingOn(bizId))) return []
+  const claimed = await transactValue(
+    p(bizId, `orders/${orderId}/stockApplied`),
+    (cur) => (cur ? undefined : true),
+  )
+  if (claimed === null) return []
+  const applied = await applyStock(bizId, items, {
+    sign: -1, reason: `Sipariş · Masa ${tableNo ?? '?'}`, orderId,
+  })
+  if (!applied.length) setValue(p(bizId, `orders/${orderId}/stockApplied`), false)
+  return applied
+}
+
+// İptal → düşülen stoğu geri yükler.
+export async function restoreOrderStock(bizId, orderId, order = null) {
+  const target = order || (await readValue(p(bizId, `orders/${orderId}`)))
+  if (!target?.items?.length) return []
+  const claimed = await transactValue(
+    p(bizId, `orders/${orderId}/stockApplied`),
+    (cur) => (cur ? false : undefined),
+  )
+  if (claimed === null) return []
+  return applyStock(bizId, target.items, {
+    sign: 1, reason: `İptal · Masa ${target.tableNo ?? '?'}`, orderId,
+  })
+}
+
+// ───────── CRM: sipariş → müşteri kartı ─────────
+// Telefon varsa ondan, yoksa isimden türetilen sabit anahtar. Aynı müşteri
+// elle de eklense siparişten de gelse tek kartta birleşir.
+const POINT_PER_TL = 10
+export function customerKey(customer) {
+  const digits = String(customer?.phone || '').replace(/\D/g, '')
+  if (digits.length >= 7) return `p${digits}`
+  const slug = String(customer?.name || '').trim().toLocaleLowerCase('tr-TR')
+    .replace(/\s+/g, '-').replace(/[.#$/[\]]/g, '')
+  return slug ? `n${slug.slice(0, 60)}` : null
+}
+
+// Hesap kapanınca ziyaret/harcama/puan müşteri kartına işlenir.
+// orders/{id}/crmApplied bayrağı çift tahsilatta puanın iki kez yazılmasını önler.
+async function creditCustomer(bizId, orderId, order) {
+  try {
+    const target = order || (await readValue(p(bizId, `orders/${orderId}`)))
+    const c = target?.customer
+    if (!c?.consent || !(c.name || c.phone)) return null
+    const key = customerKey(c)
+    if (!key) return null
+
+    const claimed = await transactValue(
+      p(bizId, `orders/${orderId}/crmApplied`),
+      (cur) => (cur ? undefined : true),
+    )
+    if (claimed === null) return null
+
+    const spend = Math.max(0, Number(target.total) || 0)
+    await transactValue(p(bizId, `crm/customers/${key}`), (cur) => {
+      const base = cur || { visits: 0, spend: 0, points: 0, createdAt: now() }
+      return {
+        ...base,
+        name: c.name || base.name || '',
+        phone: c.phone || base.phone || '',
+        consent: true,
+        visits: (Number(base.visits) || 0) + 1,
+        spend: round3((Number(base.spend) || 0) + spend),
+        points: (Number(base.points) || 0) + Math.floor(spend / POINT_PER_TL),
+        lastOrderId: orderId,
+        lastVisitAt: now(),
+        updatedAt: now(),
+      }
+    })
+    return key
+  } catch { return null }
+}
+
+// ───────── Aktif personel (cihaz başına seçilir) ─────────
+// Kasa/garson ekranında kimin çalıştığı seçilir; girilen sipariş ve alınan
+// tahsilat o personele yazılır. Seçim cihazda kalır — tablet kasada, telefon
+// garsonda farklı kişi olabilir.
+const STAFF_LS_KEY = (bizId) => `serviq_staff_${bizId}`
+const staffWatchers = new Set()
+
+export function getActiveStaffId(bizId) {
+  try { return localStorage.getItem(STAFF_LS_KEY(bizId)) || null } catch { return null }
+}
+export function setActiveStaffId(bizId, staffId) {
+  try {
+    if (staffId) localStorage.setItem(STAFF_LS_KEY(bizId), staffId)
+    else localStorage.removeItem(STAFF_LS_KEY(bizId))
+  } catch {}
+  staffWatchers.forEach((fn) => fn())
+}
+export function useActiveStaffId(bizId) {
+  const [id, setId] = useState(() => getActiveStaffId(bizId))
+  useEffect(() => {
+    const sync = () => setId(getActiveStaffId(bizId))
+    sync()
+    staffWatchers.add(sync)
+    window.addEventListener('storage', sync)
+    return () => { staffWatchers.delete(sync); window.removeEventListener('storage', sync) }
+  }, [bizId])
+  return id
+}
+
+// Seçili personeli, açık vardiyasıyla birlikte çözer.
+export function useActiveStaff(bizId) {
+  const staffId = useActiveStaffId(bizId)
+  const members = useStaff(bizId)
+  const shifts = useShifts(bizId)
+  return useMemo(() => {
+    const member = members.find((m) => m.id === staffId) || null
+    const shift = member ? shifts.find((s) => s.staffId === member.id && s.status === 'open') || null : null
+    return { staffId: member ? member.id : null, member, shift, onShift: !!shift }
+  }, [staffId, members, shifts])
+}
 
 export const useTables = (bizId) =>
   useList(bizId ? p(bizId, 'menu/tables') : null,
@@ -148,7 +388,21 @@ export const addProduct = (bizId, prod) =>
     icerik: prod.icerik || '',
     // Kampanya/kombo menü — birden fazla ürünü paket fiyatla birleştirir
     comboItems: prod.comboItems || [],
+    // Reçete — satışta stoktan otomatik düşülecek malzemeler
+    recipe: normalizeRecipe(prod.recipe),
   })
+
+// Reçete satırlarını temizler: geçersiz/sıfır miktarlı satırlar atılır,
+// aynı kalem iki kez yazılmışsa toplanır.
+export function normalizeRecipe(recipe) {
+  const merged = {}
+  ;(recipe || []).forEach((r) => {
+    const qty = Number(r?.qty) || 0
+    if (!r?.itemId || qty <= 0) return
+    merged[r.itemId] = round3((merged[r.itemId] || 0) + qty)
+  })
+  return Object.entries(merged).map(([itemId, qty]) => ({ itemId, qty }))
+}
 
 export const updateProduct = (bizId, id, patch) =>
   updateValue(p(bizId, `menu/products/${id}`), patch)
@@ -177,15 +431,20 @@ export const useOrders = (bizId) =>
   useList(bizId ? p(bizId, 'orders') : null,
     (a, b) => (b.createdAt || 0) - (a.createdAt || 0))
 
-export function createOrder(bizId, { tableId, tableNo, items, note, customer }) {
+export function createOrder(bizId, { tableId, tableNo, items, note, customer, staffId }) {
   const total = items.reduce((s, it) => s + it.price * it.qty, 0)
   const count = items.reduce((s, it) => s + it.qty, 0)
   const id = pushItem(p(bizId, 'orders'), {
     tableId, tableNo: tableNo ?? null, items, total, count,
     note: note || '', customer: customer?.name || customer?.phone ? { name: String(customer.name || '').slice(0, 100), phone: String(customer.phone || '').slice(0, 30), consent: customer.consent !== false } : null,
+    // Siparişi kim girdi — garson ekranında seçili personel, QR'dan gelirse null
+    staffId: staffId || null,
     status: 'new', createdAt: now(), updatedAt: now(),
   })
   bumpProductStats(bizId, items)
+  // Stok düşümü arka planda ilerler; sipariş kaydı beklemeden döner ki
+  // müşteri ekranı anında onay görsün.
+  if (id) consumeOrderStock(bizId, id, items, tableNo)
   return id
 }
 
@@ -234,13 +493,24 @@ export const PAYMENT_METHODS = [
 ]
 export const PAYMENT_LABELS = PAYMENT_METHODS.reduce((m, p) => { m[p.key] = p.label; return m }, {})
 
-export const markOrderPaid = (bizId, id, paymentMethod = 'nakit') =>
+// Hesabı kapatır: tahsilatı kasiyere yazar ve müşteri kartına ziyaret/puan işler.
+// `order` verilirse ek okuma yapılmaz (kasa ve masa haritası siparişi elinde tutar).
+export function markOrderPaid(bizId, id, paymentMethod = 'nakit', { order = null, cashierId = null } = {}) {
   updateValue(p(bizId, `orders/${id}`), {
-    status: 'paid', paymentMethod, paidAt: now(), updatedAt: now(),
+    status: 'paid', paymentMethod,
+    cashierId: cashierId || order?.cashierId || null,
+    paidAt: now(), updatedAt: now(),
   })
+  creditCustomer(bizId, id, order)
+  return id
+}
 
-export const cancelOrder = (bizId, id) =>
+// İptal: düşülmüş stok varsa geri yüklenir.
+export function cancelOrder(bizId, id, order = null) {
   updateValue(p(bizId, `orders/${id}`), { status: 'cancelled', updatedAt: now() })
+  restoreOrderStock(bizId, id, order)
+  return id
+}
 
 export const removeOrder = (bizId, id) =>
   removeValue(p(bizId, `orders/${id}`))

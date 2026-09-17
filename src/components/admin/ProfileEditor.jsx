@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Save, Upload, Loader2, Palette, Globe, Wifi, Phone, MapPin, Instagram, Clock, Megaphone, Star, LayoutTemplate, Printer } from 'lucide-react'
+import { Save, Upload, Loader2, Palette, Globe, Wifi, Phone, MapPin, Instagram, Clock, Megaphone, Star, LayoutTemplate, Printer, Boxes } from 'lucide-react'
 import { useProfile, updateProfile, useBusinessId } from '../../lib/store'
 import { fileToCompressedDataURL } from '../../lib/image'
 import { ProductImage } from '../../components/ui'
@@ -276,6 +276,35 @@ export default function ProfileEditor() {
           <p className="text-xs text-ink-400 leading-relaxed">
             💡 <b>Sessiz (diyalogsuz) otomatik baskı için:</b> kasa bilgisayarında Chrome'u "kiosk printing" ile açın — masaüstü kısayoluna sağ tık → Hedef sonuna <code className="bg-ink-100 px-1 rounded">--kiosk-printing</code> ekleyin. Aksi halde her baskıda yazdırma penceresi açılır.
           </p>
+        </div>
+
+        {/* Stok takibi — istemeyen işletme tek tıkla kapatır */}
+        <div className="card p-5 space-y-3">
+          <h3 className="font-display font-bold text-ink-800 flex items-center gap-2">
+            <Boxes className="h-4 w-4 text-brand-500" /> Stok Takibi
+          </h3>
+          <p className="text-sm text-ink-400">
+            Açıkken malzemelerinizi tanımlayıp ürünlere reçete bağlayabilirsiniz; sipariş girildiğinde
+            stok otomatik düşer. Uğraşmak istemiyorsanız kapatın — stok ekranları ve reçete alanı gizlenir,
+            siparişler normal şekilde işlemeye devam eder.
+          </p>
+          <label className="flex items-center justify-between gap-3 rounded-xl bg-ink-50 px-4 py-3 cursor-pointer">
+            <span className="text-sm font-medium text-ink-700">
+              Stok takibi ve otomatik düşüm <b>{data.stockTracking === false ? 'kapalı' : 'açık'}</b>
+            </span>
+            <input
+              type="checkbox"
+              checked={data.stockTracking !== false}
+              onChange={(e) => set('stockTracking', e.target.checked)}
+              className="h-4 w-4 accent-brand-500 shrink-0"
+            />
+          </label>
+          {data.stockTracking === false && (
+            <p className="text-xs text-amber-600 leading-relaxed">
+              ⚠️ Kapalıyken siparişler stoktan düşmez. Girdiğiniz stok kartları ve reçeteler silinmez —
+              tekrar açtığınızda kaldığı yerden devam eder.
+            </p>
+          )}
         </div>
 
         <button

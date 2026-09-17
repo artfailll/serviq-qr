@@ -17,6 +17,7 @@ import {
   Wallet,
   AlertTriangle,
   Printer,
+  Ban,
 } from 'lucide-react'
 import {
   useOrders,
@@ -27,8 +28,11 @@ import {
   resolveCall,
   useTicker,
   useBusinessId,
+  useActiveStaff,
+  cancelOrder,
   PAYMENT_LABELS,
 } from '../lib/store'
+import StaffPicker from '../components/StaffPicker'
 import { money, clockMs, timeOfDay, isToday } from '../lib/format'
 import { EmptyState, DemoBadge } from '../components/ui'
 import PaymentModal from '../components/PaymentModal'
@@ -55,6 +59,7 @@ export default function Cashier() {
   const calls = useCalls(bizId)
   const profile = useProfile(bizId)
   const soundOn = useSoundPref()
+  const { staffId: cashierId } = useActiveStaff(bizId)
   useTicker(1000)
 
   // Otomatik adisyon: yeni sipariş gelince mutfak fişini yazdır (ayar açıksa).
@@ -99,6 +104,7 @@ export default function Cashier() {
 
           <div className="ml-auto flex items-center gap-2">
             <DemoBadge />
+            <StaffPicker bizId={bizId} compact />
             <Link to="/garson" className="btn-outline !py-2 hidden sm:inline-flex">
               <UtensilsCrossed className="h-4 w-4" />
               Garson
@@ -160,7 +166,7 @@ export default function Cashier() {
                 </div>
                 <div className="space-y-3">
                   {items.map((o) => (
-                    <OrderCard key={o.id} order={o} accent={col.accent} bizId={bizId} profile={profile} />
+                    <OrderCard key={o.id} order={o} accent={col.accent} bizId={bizId} profile={profile} cashierId={cashierId} />
                   ))}
                   {items.length === 0 && (
                     <div className="rounded-2xl border-2 border-dashed border-ink-200 py-8 text-center text-sm text-ink-400">
@@ -224,7 +230,7 @@ function CallBanner({ call, bizId }) {
   )
 }
 
-function OrderCard({ order, accent, bizId, profile }) {
+function OrderCard({ order, accent, bizId, profile, cashierId }) {
   const mins = (Date.now() - (order.createdAt || 0)) / 60000
   const overdue = order.status !== 'served' && mins >= OVERDUE_MIN
   const isServed = order.status === 'served'
@@ -261,6 +267,17 @@ function OrderCard({ order, accent, bizId, profile }) {
       <div className="mt-3 flex items-center justify-between border-t border-ink-100 pt-3">
         <span className="font-display font-extrabold text-ink-900">{money(order.total)}</span>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (confirm(`Masa ${order.tableNo ?? '?'} siparişi iptal edilsin mi?\nReçeteli ürünlerin stoğu geri yüklenir.`)) {
+                cancelOrder(bizId, order.id, order)
+              }
+            }}
+            className="btn-ghost !py-1.5 !px-2.5 text-ink-400 hover:text-red-600"
+            title="Siparişi iptal et (stok geri yüklenir)"
+          >
+            <Ban className="h-4 w-4" />
+          </button>
           {PREV[order.status] && (
             <button
               onClick={() => setOrderStatus(bizId, order.id, PREV[order.status])}
@@ -313,7 +330,7 @@ function OrderCard({ order, accent, bizId, profile }) {
         total={order.total}
         subtitle={`Masa ${order.tableNo ?? '?'} · tahsilat`}
         onSelect={(method) => {
-          markOrderPaid(bizId, order.id, method)
+          markOrderPaid(bizId, order.id, method, { order, cashierId })
           setPayOpen(false)
           // Ödeme sonrası fiş otomatik bassın (ayar açıksa)
           if (profile?.printBillOnPay) printBill(order, profile, PAYMENT_LABELS[method] || method)

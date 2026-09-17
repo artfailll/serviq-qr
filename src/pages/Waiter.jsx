@@ -5,8 +5,9 @@ import {
   LayoutGrid, Check, Trash2, StickyNote,
 } from 'lucide-react'
 import {
-  useProfile, useCategories, useProducts, useTables, createOrder, useBusinessId,
+  useProfile, useCategories, useProducts, useTables, createOrder, useBusinessId, useActiveStaff,
 } from '../lib/store'
+import StaffPicker from '../components/StaffPicker'
 import { money } from '../lib/format'
 import AdminLogin, { useAdminAuthState } from './AdminLogin'
 
@@ -33,6 +34,7 @@ function WaiterPOS({ bizId }) {
   const categories = useCategories(bizId)
   const products = useProducts(bizId)
   const tables = useTables(bizId)
+  const { staffId } = useActiveStaff(bizId)
 
   const [table, setTable] = useState(null)      // seçili masa
   const [cart, setCart] = useState([])           // {productId,name,price,qty,note}
@@ -77,6 +79,7 @@ function WaiterPOS({ bizId }) {
     createOrder(bizId, {
       tableId: table.id, tableNo: table.no,
       items: cart.map((i) => ({ productId: i.productId, name: i.name, price: i.price, qty: i.qty, note: i.note || '' })),
+      staffId,
     })
     setCart([]); setCartOpen(false); setSent(true)
     setTimeout(() => setSent(false), 1800)
@@ -86,7 +89,7 @@ function WaiterPOS({ bizId }) {
   if (!table) {
     return (
       <div className="min-h-screen bg-ink-100">
-        <Header profile={profile} title="Garson · Masa Seç" />
+        <Header profile={profile} title="Garson · Masa Seç" bizId={bizId} />
         <div className="mx-auto max-w-3xl p-4">
           <div className="mb-3 flex items-center gap-2 text-ink-500">
             <LayoutGrid className="h-4 w-4" /> <span className="font-semibold">Sipariş girmek için masa seçin</span>
@@ -111,6 +114,7 @@ function WaiterPOS({ bizId }) {
     <div className="min-h-screen bg-ink-100 pb-28">
       <Header
         profile={profile}
+        bizId={bizId}
         title={`Masa ${table.no}`}
         left={<button onClick={() => { setTable(null); setQuery('') }} className="btn-ghost !py-1.5 !px-2.5"><ArrowLeft className="h-4 w-4" /></button>}
       />
@@ -242,7 +246,7 @@ function CartSheet({ cart, total, tableNo, onClose, changeQty, setNote, send }) 
   )
 }
 
-function Header({ profile, title, left, right }) {
+function Header({ profile, title, left, right, bizId }) {
   const initial = (profile?.name || 'S')[0].toUpperCase()
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-ink-200">
@@ -257,6 +261,7 @@ function Header({ profile, title, left, right }) {
         </div>
         <div className="ml-auto flex items-center gap-2">
           {right}
+          {bizId && <StaffPicker bizId={bizId} compact />}
           <Link to="/kasa" className="btn-outline !py-2 hidden sm:inline-flex">Kasa</Link>
         </div>
       </div>

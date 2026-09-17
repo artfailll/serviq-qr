@@ -14,6 +14,7 @@ import {
   removeTable,
   useBusinessId,
   useProfile,
+  useActiveStaff,
 } from '../../lib/store'
 import { money, clockMs } from '../../lib/format'
 import { Modal } from '../../components/ui'
@@ -93,6 +94,7 @@ export default function TableMap() {
   const orders = useOrders(bizId)
   const layout = useLayout(bizId)
   const profile = useProfile(bizId)
+  const { staffId: cashierId } = useActiveStaff(bizId)
   const [generating, setGenerating] = useState(false)
   useTicker(1000)
 
@@ -154,7 +156,7 @@ export default function TableMap() {
   function closeTable(t, method) {
     // Hesabı kapat: tüm aktif siparişler seçilen yöntemle ödendi →
     // masa boşalır, ciroya yazılır, raporda yönteme göre ayrışır.
-    t.active.forEach((o) => markOrderPaid(bizId, o.id, method))
+    t.active.forEach((o) => markOrderPaid(bizId, o.id, method, { order: o, cashierId }))
     if (t.mergedInto || layout[t.id]) unmergeTable(bizId, t.id)
     setSelected(null)
   }
