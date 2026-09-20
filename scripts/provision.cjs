@@ -48,14 +48,20 @@ async function main(args = process.argv.slice(2)) {
     await request(endpoint, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'if-match': etag }, body: JSON.stringify({ menu }) })
     console.log('İşletme kaydedildi. Gerçek menü ve fiyatlar yönetimden girilmeli; örnek ürün eklenmedi.')
   }
-  const { brandedTableQR, tableUrl, escapeHtml } = await import(pathToFileURL(path.join(ROOT, 'src/lib/tableQr.js')))
+  const { tableUrl } = await import(pathToFileURL(path.join(ROOT, 'src/lib/tableQr.js')))
+  const { createQrPrintDocument, getQrPrintTheme } = await import(pathToFileURL(path.join(ROOT, 'src/lib/qrPrintTemplates.js')))
   const tables = Object.values(menu.tables || {}).sort((a,b) => a.no - b.no)
   if (!tables.length) throw new Error('Tanımlı masa yok; yönetimden masa ekleyin.')
-  const cards = await Promise.all(tables.map(async t => `<article><h2>${escapeHtml(menu.profile.name)}</h2>${await brandedTableQR(o.id, t.no, menu.profile.name)}<h3>${escapeHtml(t.name || `Masa ${t.no}`)}</h3><p>Kameranızla okutun · Menüyü açın</p></article>`))
+  let printDocument = await createQrPrintDocument({bizId:o.id,tables,profile:menu.profile})
+  // The installer HTML is opened via file://; embed its selected font so it
+  // also prints correctly offline, without cross-origin font permissions.
+  const printTheme = getQrPrintTheme(menu.profile.qrPrintTheme)
+  const font = fs.readFileSync(path.join(ROOT, 'public/fonts/qr', `${printTheme.file}.ttf`)).toString('base64')
+  printDocument = printDocument.replace(`https://serviq.com.tr/fonts/qr/${printTheme.file}.ttf`, `data:font/ttf;base64,${font}`)
   const root = process.env.SERVIQ_OUTPUT_DIR || path.join(ROOT, 'kurulum-paketleri')
   fs.mkdirSync(root, { recursive: true })
   const out = fs.mkdtempSync(path.join(root, `${o.onlyQR ? 'qr' : 'kurulum'}-`))
-  fs.writeFileSync(path.join(out, 'QR-YAZDIR.html'), `<!doctype html><html lang="tr"><meta charset="utf-8"><title>${escapeHtml(menu.profile.name)} QR</title><style>body{font-family:Arial;display:grid;grid-template-columns:repeat(2,1fr);gap:16px}article{text-align:center;border:1px solid #ccc;padding:18px;break-inside:avoid}svg{width:240px;height:240px}h2{font-size:18px}p{font-size:12px}@media print{@page{size:A4;margin:12mm}}</style>${cards.join('')}</html>`)
+  fs.writeFileSync(path.join(out, 'QR-YAZDIR.html'), printDocument)
   fs.writeFileSync(path.join(out, 'NFC-BAGLANTILARI.txt'), `${menu.profile.name}\nEtiket kaydı: URL (NDEF URI). QR ile aynı masa adresi.\n\n` + tables.map(t => `${t.name || `Masa ${t.no}`}\n${tableUrl(o.id, t.no)}\n`).join('\n'))
   fs.writeFileSync(path.join(out, 'KURULUM-KONTROL.txt'), `${menu.profile.name}\nYönetim: https://serviq.com.tr/yonetim?isletme=${encodeURIComponent(o.id)}\nKasa: https://serviq.com.tr/kasa?isletme=${encodeURIComponent(o.id)}\nGarson: https://serviq.com.tr/garson?isletme=${encodeURIComponent(o.id)}\n\nTESLİMDEN ÖNCE:\n1. Gerçek menü, fiyat ve masaları girin.\n2. Ayrı internet bağlantılı müşteri telefonundan test siparişi verin.\n3. Kasa ve yönetimde aynı sipariş/masa/tutarı görün.\n4. Mutfak, servis, ödeme durumlarını doğrulayın.\n5. Bağlantı kesilince sahte başarı görünmediğini doğrulayın.\n6. Her QR ve NFC etiketini masaya yapıştırmadan okutun.\n7. İşletmeler arası erişim yetkisini test edin.\nŞifreler bu pakete yazılmamıştır.\n`)
   console.log(`QR/NFC dosyaları hazır: ${out}`)
