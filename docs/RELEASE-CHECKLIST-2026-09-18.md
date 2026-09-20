@@ -1,6 +1,12 @@
 # Serviq — yayın ve müşteri teslim kontrolü
 
 Güncelleme: 20 Eylül 2026. Çalışma dalı: `fix/reliable-orders-nfc-20260918`.
+Canlı yayın: https://serviq.com.tr — Netlify `6aafb840329918b3bb951188`.
+Canlı kabul testi de geçti: `outputs/serviq-qa-1789900890936-b803b5/report.json`.
+Müşteri/kasa/yönetim/garson ayrı tarayıcı oturumlarında sınandı; hiçbir JavaScript
+hatası gözlenmedi. Testin oluşturduğu iki QA işletmesi temizlendi. Bu, aşağıdaki
+yetkilendirme ve fiziksel cihaz eksiklerini tamamlanmış saymaz.
+
 Başlangıç: `1fc8af22b16f683f565e2d3f983929fac515da55`; upstream ile karşılaştırıldı.
 37 birim/statik kontrol ve gerçek Firebase üzerinde ayrı tarayıcı oturumlarıyla
 uçtan uca test geçti. Test URL'si yerel Netlify sunucusuydu; bu tek başına canlı
