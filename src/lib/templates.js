@@ -623,6 +623,24 @@ export const TEMPLATES = {
   },
 }
 
+Object.assign(TEMPLATES, {
+  donerhane: {
+    ...TEMPLATES.vitrin, id:'donerhane', name:'Dönerhane', desc:'Dönen halkalar, sıcak sarı ve güçlü sokak lezzeti tipografisi', ideal:'Dönerci · Dürümcü', foodTheme:'doner',
+    fontsHref:'https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap', fontDisplay:"'Oswald',sans-serif", fontBody:"'Manrope',sans-serif",
+    cardLayout:'food-doner', heroLayout:'food', accent:'#a93220', bg:'#fbf6e8', bgSolid:'#fbf6e8', text:'#29231d', textMuted:'#776955', textFaint:'#827462', sticky:'rgba(251,246,232,.96)', surface:'#fffdf7', surfaceBorder:'#e6dfd2', radius:4,
+  },
+  ocakbasi: {
+    ...TEMPLATES.editorial, id:'ocakbasi', name:'Ocakbaşı', desc:'Canlanan geometrik desenler ve kemerli menü kartları', ideal:'Kebapçı · Ocakbaşı', foodTheme:'kebab',
+    fontsHref:'https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Manrope:wght@400;500;600;700;800&display=swap', fontDisplay:"'DM Serif Display',Georgia,serif", fontBody:"'Manrope',sans-serif",
+    cardLayout:'food-kebab', heroLayout:'food', accent:'#782b38', bg:'#f5eddf', bgSolid:'#f5eddf', text:'#3d2725', textMuted:'#7b625d', textFaint:'#897069', surface:'#fffcf5', sticky:'rgba(245,237,223,.96)', surfaceBorder:'#ded0bb', radius:12,
+  },
+  koz: {
+    ...TEMPLATES.gece, id:'koz', name:'Köz', desc:'Yükselen közler, ızgara çizgileri ve koyu yeşil servis kartları', ideal:'Izgaracı · Köfteci', foodTheme:'grill',
+    fontsHref:'https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500;6..96,600&family=Manrope:wght@400;500;600;700;800&display=swap', fontDisplay:"'Bodoni Moda',Georgia,serif", fontBody:"'Manrope',sans-serif",
+    cardLayout:'food-grill', heroLayout:'food', dark:true, accent:'#a5673c', bg:'#182620', bgSolid:'#182620', text:'#efece2', textMuted:'#b7beb4', textFaint:'#9baa9d', surface:'#213229', surfaceBorder:'#d5ae7533', sticky:'rgba(24,38,32,.96)', sheet:'#213229', fab:'#263c2f', inputBg:'#304536', inputBorder:'#526750', tabText:'#c7d1c4', tabBorder:'#526750', divider:'#526750', radius:2,
+  },
+})
+
 export const TEMPLATE_LIST = Object.values(TEMPLATES)
 
 // Şablon çözümleme — eski `theme` alanından geriye dönük eşleme

@@ -4,6 +4,8 @@ import { useProfile, updateProfile, useBusinessId } from '../../lib/store'
 import { fileToCompressedDataURL } from '../../lib/image'
 import { ProductImage } from '../../components/ui'
 import { TEMPLATE_LIST } from '../../lib/templates'
+import { LoyaltySettings } from './LoyaltyPanel'
+import { getLoyaltyRules } from '../../lib/loyalty'
 
 const BRAND_COLORS = [
   '#f97316','#ef4444','#8b5cf6','#06b6d4','#22c55e',
@@ -16,6 +18,7 @@ export default function ProfileEditor() {
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [uploadingField, setUploadingField] = useState(null)
   const coverRef = useRef(null)
   const logoRef = useRef(null)
@@ -36,12 +39,17 @@ export default function ProfileEditor() {
   }
 
   async function save() {
+    if (saving) return
+    if (data.loyalty?.enabled && !getLoyaltyRules(data).enabled) { setSaveError('Sadakat oranı, ödül puanı ve ödül adı geçerli olmalı.'); return }
+    setSaveError('')
     setSaving(true)
+    try {
     await updateProfile(bizId, data)
-    setSaving(false)
     setSaved(true)
     setForm(null)
     setTimeout(() => setSaved(false), 2500)
+    } catch { setSaveError('Profil kaydedilemedi. Değişiklikleriniz korunuyor; bağlantıyı kontrol edin.') }
+    finally { setSaving(false) }
   }
 
   function set(key, val) { setForm((prev) => ({ ...(prev || profile), [key]: val })) }
@@ -307,6 +315,8 @@ export default function ProfileEditor() {
           )}
         </div>
 
+        <LoyaltySettings value={data.loyalty} onChange={value => set('loyalty',value)} />
+        {saveError && <p role="alert" className="text-red-700 text-sm">{saveError}</p>}
         <button
           onClick={save}
           disabled={saving || !form}

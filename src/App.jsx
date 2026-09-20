@@ -6,6 +6,7 @@ import { BusinessContext } from './lib/store'
 import { UtensilsCrossed } from 'lucide-react'
 import ErrorBoundary from './components/ErrorBoundary'
 import StaffAlerts from './components/StaffAlerts'
+import ConnectionStatus from './components/ConnectionStatus'
 
 const Home     = lazy(() => import('./pages/Home'))
 const Customer = lazy(() => import('./pages/Customer'))
@@ -39,17 +40,24 @@ function NoBusiness() {
 function AppWithBusiness({ bizId }) {
   const [ready, setReady] = useState(false)
   const [unknown, setUnknown] = useState(false)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     let alive = true
+    setReady(false)
+    setError(false)
+    const timer = setTimeout(() => { if (alive) setError(true) }, 15000)
     ensureSeeded(bizId).then((ok) => {
       if (!alive) return
+      clearTimeout(timer)
+      setError(false)
       setUnknown(!ok)
       setReady(true)
-    })
-    return () => { alive = false }
+    }).catch(() => { if (alive) { clearTimeout(timer); setError(true) } })
+    return () => { alive = false; clearTimeout(timer) }
   }, [bizId])
 
+  if (error) return <div className="min-h-screen grid place-items-center p-6"><div role="alert" className="card p-8 text-center"><h2>İşletmeye bağlanılamadı</h2><p>İnternet bağlantısını kontrol edin. Sipariş gönderilmedi.</p><button className="btn-primary mt-4" onClick={() => window.location.reload()}>Tekrar dene</button></div></div>
   if (!ready) return <Loader />
   // Böyle bir işletme açılmamış — sahte menü üretmek yerine hata göster
   if (unknown) return <NoBusiness />
@@ -57,6 +65,7 @@ function AppWithBusiness({ bizId }) {
   return (
     <BusinessContext.Provider value={bizId}>
       <ErrorBoundary>
+        <ConnectionStatus />
         <StaffAlerts />
         <Suspense fallback={<Loader />}>
           <Routes>
@@ -92,5 +101,5 @@ export default function App() {
     )
   }
 
-  return <AppWithBusiness bizId={bizId} />
+  return <AppWithBusiness key={bizId} bizId={bizId} />
 }

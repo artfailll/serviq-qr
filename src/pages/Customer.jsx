@@ -7,16 +7,19 @@ import {
   MapPin, Phone, Instagram, Tag,
 } from 'lucide-react'
 import {
-  useCategories, useProducts, useTables, useProductStats,
+  useValue, useProducts, useTables, useProductStats,
   createOrder, createCall, saveFeedback, useBusinessId, useProfile, useOrders,
 } from '../lib/store'
-import { subscribe, setValue } from '../lib/db'
+import { subscribe, setValue, mapToList } from '../lib/db'
 import { DEFAULT_NOTES, TAG_MAP, ALLERGEN_MAP } from '../lib/seed'
 import { getTemplate, getAccent } from '../lib/templates'
 import { LANGS, t as tt } from '../lib/i18n'
 import { ProductImage } from '../components/ui'
 import { money } from '../lib/format'
 import { runWaiterToCart } from '../lib/waiterRun'
+import { RestaurantHero, RestaurantCard } from '../components/RestaurantMenuTheme'
+import { recommendPairings } from '../lib/recommendations'
+import { getLoyaltyRules } from '../lib/loyalty'
 
 function toRgb(hex) {
   const h = hex?.startsWith('#') ? hex : '#f97316'
@@ -47,9 +50,9 @@ export default function Customer() {
   const bizId    = useBusinessId()
   const [params] = useSearchParams()
   const masaNo   = params.get('masa') || '?'
-  const tableId  = 'masa' + masaNo
 
-  const categories = useCategories(bizId)
+  const categoryData = useValue(bizId ? `businesses/${bizId}/menu/categories` : null, undefined)
+  const categories = useMemo(() => mapToList(categoryData, (a, b) => (a.order || 0) - (b.order || 0)), [categoryData])
   const products   = useProducts(bizId)
   const tables     = useTables(bizId)
   const profile    = useProfile(bizId)
@@ -57,6 +60,7 @@ export default function Customer() {
   const allOrders  = useOrders(bizId)
 
   const tableMeta = tables.find(x => String(x.no) === String(masaNo))
+  const tableId = tableMeta?.id || null
   const T      = getTemplate(profile)
   const accent = getAccent(profile, T)
   const rgb    = toRgb(accent)
@@ -122,6 +126,16 @@ export default function Customer() {
   const [cartOpen, setCartOpen]   = useState(false)
   const [toast, setToast]         = useState(null)
   const [placed, setPlaced]       = useState(false)
+  const [sending, setSending] = useState(false)
+  const sendingRef = useRef(false)
+  const callPending = useRef(false)
+  const [orderError, setOrderError] = useState('')
+  useEffect(() => {
+    if (!sending) return
+    const warn = e => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [sending])
   const [query, setQuery]         = useState('')
   const [trackOpen, setTrackOpen] = useState(false)
   const [cartBump, setCartBump]   = useState(0)
@@ -224,7 +238,7 @@ export default function Customer() {
   })
 
   function addToCart(product, qty, note, unitPrice, label) {
-    if (!open || !product.available) return
+    if (sendingRef.current || !open || !product.available) return
     const name = label || product.name
     const price = unitPrice ?? product.price
     // Kampanya menüsü: mutfak fişinde içerik görünsün diye özel not yoksa
@@ -241,13 +255,20 @@ export default function Customer() {
   }
 
   function changeQty(i, d) {
+    if (sendingRef.current) return
     setCart(prev => { const c=[...prev]; const n2=c[i].qty+d; if(n2<=0) c.splice(i,1); else c[i]={...c[i],qty:n2}; return c })
   }
 
-  function confirmOrder() {
-    if (!cart.length || !open) return
-    const id = createOrder(bizId, { tableId, tableNo: Number(masaNo)||null,
-      items: cart.map(i => ({ productId:i.productId, name:i.name, price:i.price, qty:i.qty, note:i.note||'' })), customer: customerInfo.consent ? customerInfo : null })
+  async function confirmOrder() {
+    if (sendingRef.current || !cart.length || !open) return
+    if (!tableId) { setOrderError('Masa bulunamadı. Masanızdaki QR kodu tekrar okutun.'); return }
+    if (loyalty.enabled && customerInfo.consent && String(customerInfo.phone).replace(/\D/g,'').length < 10) { setOrderError('Sadakat puanı için geçerli telefon numarası girin veya katılım işaretini kaldırın.'); return }
+    sendingRef.current = true
+    setSending(true)
+    setOrderError('')
+    try {
+    const id = await createOrder(bizId, { tableId, tableNo: Number(masaNo)||null,
+      items: cart.map(i => ({ productId:i.productId, name:i.name, price:i.price, qty:i.qty, note:i.note||'' })), customer: loyalty.enabled && customerInfo.consent ? customerInfo : null })
     if (id) {
       const next = [id, ...myIds].slice(0, 5)
       setMyIds(next)
@@ -255,20 +276,29 @@ export default function Customer() {
     }
     setCart([]); setCartOpen(false); setPlaced(true)
     setTimeout(() => setPlaced(false), 3200)
+    } catch (error) {
+      setOrderError(error.message || 'Sipariş kaydedilemedi. Sepetiniz korunuyor.')
+    } finally { sendingRef.current = false; setSending(false) }
   }
 
-  function call(type) {
+  async function call(type) {
+    if (callPending.current) return
+    if (!tableId) { showToast('Masa bulunamadı. QR kodu tekrar okutun.'); return }
     const now2 = Date.now()
     const remain = CALL_COOLDOWN_MS - (now2 - (lastCallAt[type] || 0))
     if (remain > 0) {
       showToast(`${Math.ceil(remain / 1000)} sn sonra tekrar çağırabilirsiniz`)
       return
     }
-    createCall(bizId, { tableId, tableNo: Number(masaNo)||null, type })
+    callPending.current = true
+    try {
+    await createCall(bizId, { tableId, tableNo: Number(masaNo)||null, type })
     const next = { ...lastCallAt, [type]: now2 }
     setLastCallAt(next)
     try { localStorage.setItem(CALL_KEY(bizId, tableId || masaNo), JSON.stringify(next)) } catch {}
     showToast(type === 'waiter' ? t('waiterComing') : t('billComing'))
+    } catch { showToast('Çağrı iletilemedi. Bağlantıyı kontrol edin.') }
+    finally { callPending.current = false }
   }
 
   function scrollToCat(id) {
@@ -286,18 +316,11 @@ export default function Customer() {
   }
 
   // Upsell: sepette olmayan, uygun kategorilerden en ucuz 3 ürün
-  const upsell = useMemo(() => {
-    if (!cart.length) return []
-    const inCart = new Set(cart.map(i => i.productId))
-    const catName = {}; categories.forEach(c => (catName[c.id] = c.name.toLowerCase()))
-    return products
-      .filter(p2 => p2.available && !inCart.has(p2.id) &&
-        (p2.featured || p2.chef || /içecek|tatlı|atıştır|soğuk|sıcak/.test(catName[p2.categoryId] || '')))
-      .sort((a, b) => a.price - b.price).slice(0, 3)
-  }, [cart, products, categories])
+  const upsell = useMemo(() => recommendPairings(cart, products, categories), [cart, products, categories])
+  const loyalty = getLoyaltyRules(profile)
 
   const initial = (profile.name||'S').trim()[0].toUpperCase()
-  const loading = categories.length === 0
+  const loading = categoryData === undefined
   const isRTL = lang === 'ar'
   const D = T.fontDisplay, B = T.fontBody
 
@@ -313,7 +336,7 @@ export default function Customer() {
   } }
 
   return (
-    <div className="customer-menu" dir={isRTL ? 'rtl' : 'ltr'} style={{ background:T.bg, minHeight:'100vh', paddingBottom:170, color:T.text, fontFamily:B, colorScheme:T.dark ? 'dark' : 'light' }}>
+    <div className="customer-menu" data-template={T.id} dir={isRTL ? 'rtl' : 'ltr'} style={{ background:T.bg, minHeight:'100vh', paddingBottom:170, color:T.text, fontFamily:B, colorScheme:T.dark ? 'dark' : 'light' }}>
 
       {/* ── HERO ── */}
       <Hero T={T} accent={accent} rgb={rgb} profile={profile} initial={initial}
@@ -376,6 +399,7 @@ export default function Customer() {
       {/* ── İÇERİK ── */}
       <main style={{ maxWidth:560, margin:'0 auto', padding:'20px 14px 0' }}>
         {loading && <SkeletonList T={T} />}
+        {!loading && categories.length === 0 && <p role="status" style={{ color:T.textMuted, textAlign:'center', padding:'40px 16px' }}>İşletme menüsünü hazırlıyor. Sipariş için lütfen ekibe danışın.</p>}
 
         {!loading && searchResults && (
           <>
@@ -477,7 +501,7 @@ export default function Customer() {
 
       {/* ── Sepet ── */}
       {cartOpen && (
-        <Sheet onClose={() => setCartOpen(false)} title={t('cart')} T={T} D={D}>
+        <Sheet onClose={() => { if (!sendingRef.current) setCartOpen(false) }} title={t('cart')} T={T} D={D}>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {cart.map((item,i) => (
               <div key={i} style={{ display:'flex', alignItems:'center', gap:12, background:T.surface, borderRadius:16, padding:12, border:`1px solid ${T.surfaceBorder}` }}>
@@ -502,11 +526,12 @@ export default function Customer() {
 
           {/* Upsell */}
           {upsell.length > 0 && (
-            <div style={{ marginTop:18 }}>
+            <div data-testid="pairings" style={{ marginTop:18 }}>
               <p style={{ color:T.textMuted, fontWeight:800, fontSize:12, textTransform:'uppercase', letterSpacing:.8, marginBottom:10 }}>{t('upsell')}</p>
               <div style={{ display:'flex', gap:10, overflowX:'auto', scrollbarWidth:'none', paddingBottom:4 }}>
                 {upsell.map(p2 => (
                   <button key={p2.id} onClick={() => {
+                    if (sendingRef.current) return
                     if (p2.variants?.length || p2.extras?.length) { setCartOpen(false); setDetail(p2) }
                     else { addToCart(p2, 1, ''); setCartOpen(true) }
                   }} style={{
@@ -528,22 +553,25 @@ export default function Customer() {
               <span style={{ color:T.textMuted, fontWeight:600, fontSize:14 }}>{t('total')}</span>
               <span style={{ color:T.text, fontWeight:900, fontSize:24, fontFamily:D }}>{money(cartTotal)}</span>
             </div>
-            <button onClick={confirmOrder} disabled={!open || !cart.length} style={{
+            {orderError && <p role="alert" style={{ color: '#b91c1c', marginBottom: 12 }}>{orderError}</p>}
+            {sending && <p role="status" style={{ color:T.textMuted, marginBottom:12 }}>Sunucu onayı bekleniyor. Sayfayı kapatmayın; bağlantı geri geldiğinde işlem devam eder.</p>}
+            <button onClick={confirmOrder} disabled={sending || !open || !cart.length || !tableId} style={{
               width:'100%', padding:'16px', borderRadius:16, border:'none',
               background: open ? `linear-gradient(135deg,${accent},rgba(${rgb},.75))` : T.inputBg,
               boxShadow: open ? `0 8px 24px rgba(${rgb},.4)` : 'none',
               color: open ? '#fff' : T.textFaint, fontWeight:900, fontSize:16, cursor: open?'pointer':'not-allowed',
               display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontFamily:B }}>
-              <Check size={18} strokeWidth={3}/> {open ? t('confirm') : t('closed')}
+              <Check size={18} strokeWidth={3}/> {sending ? 'Gönderiliyor…' : !tableId ? 'Geçerli masa gerekli' : open ? t('confirm') : t('closed')}
             </button>
-            <div style={{ marginTop:14, padding:12, borderRadius:14, background:T.inputBg, border:`1px solid ${T.inputBorder}` }}>
+            {loyalty.enabled && <div style={{ marginTop:14, padding:12, borderRadius:14, background:T.inputBg, border:`1px solid ${T.inputBorder}` }}>
               <div style={{ color:T.text, fontWeight:800, fontSize:12, marginBottom:8 }}>Sadakat puanı kazan (isteğe bağlı)</div>
+              <p style={{ color:T.textMuted, fontSize:12, lineHeight:1.6 }}>Ödenen her {money(loyalty.earnEveryTL)} için 1 puan. {loyalty.rewardPoints} puan = {loyalty.rewardName}. Ödül kullanımı kasada personel onayıyla yapılır.</p>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                 <input value={customerInfo.name} onChange={e => setCustomerInfo(v => ({ ...v, name:e.target.value }))} placeholder="Ad soyad" style={{ width:'100%', boxSizing:'border-box', borderRadius:10, border:`1px solid ${T.inputBorder}`, background:T.surface, color:T.text, padding:'9px 10px', fontSize:12, outline:'none' }} />
                 <input value={customerInfo.phone} onChange={e => setCustomerInfo(v => ({ ...v, phone:e.target.value }))} placeholder="Telefon" inputMode="tel" style={{ width:'100%', boxSizing:'border-box', borderRadius:10, border:`1px solid ${T.inputBorder}`, background:T.surface, color:T.text, padding:'9px 10px', fontSize:12, outline:'none' }} />
               </div>
-              <label style={{ display:'flex', alignItems:'center', gap:7, color:T.textMuted, fontSize:11, marginTop:9, cursor:'pointer' }}><input type="checkbox" checked={customerInfo.consent} onChange={e => setCustomerInfo(v => ({ ...v, consent:e.target.checked }))} /> Kampanya ve puan bilgilerini almak istiyorum.</label>
-            </div>
+              <label style={{ display:'flex', alignItems:'center', gap:7, color:T.textMuted, fontSize:11, marginTop:9, cursor:'pointer' }}><input type="checkbox" checked={customerInfo.consent} onChange={e => setCustomerInfo(v => ({ ...v, consent:e.target.checked }))} /> Bilgilerimin bu işletmede sadakat kaydım için kullanılmasını istiyorum. Pazarlama mesajı izni vermiyorum.</label>
+            </div>}
             <p style={{ textAlign:'center', color:T.textFaint, fontSize:11, marginTop:10 }}>{t('payNote')}</p>
           </div>
         </Sheet>
@@ -605,6 +633,7 @@ export default function Customer() {
 
 /* ══════════ HERO — şablona göre 4 kompozisyon ══════════ */
 function Hero({ T, accent, rgb, profile, initial, tableLabel, D }) {
+  if (T.foodTheme) return <RestaurantHero T={T} profile={profile} tableLabel={tableLabel} />
   const TableBadge = (
     <span style={{ display:'inline-flex', alignItems:'center', gap:6, background: T.dark||T.heroLayout==='photo' ? 'rgba(255,255,255,.14)' : `rgba(${rgb},.1)`,
       backdropFilter:'blur(12px)', border:`1px solid ${T.dark||T.heroLayout==='photo' ? 'rgba(255,255,255,.22)' : `rgba(${rgb},.3)`}`,
@@ -1058,6 +1087,7 @@ function Badges({ p, badge, accent, t, small }) {
 
 /* ══════════ Liste kapsayıcı düzeni — şablona göre grid/flex ══════════ */
 function listStyle(T) {
+  if (T.foodTheme === 'kebab') return { display:'grid', gridTemplateColumns:'repeat(2,minmax(0,1fr))', gap:14, alignItems:'stretch' }
   const twoCol = T.cardLayout === 'zarif' || T.cardLayout === 'bento' || T.cardLayout === 'pop' || T.cardLayout === 'neon'
   if (twoCol) {
     const gap = T.cardLayout === 'bento' ? 10 : 12
@@ -1076,6 +1106,7 @@ function listStyle(T) {
 /* ══════════ ÜRÜN KARTLARI — 4 şablon dili ══════════ */
 function Card(props) {
   const { T } = props
+  if (T.foodTheme) return <RestaurantCard {...props} />
   if (T.cardLayout === 'editorial') return <EditorialRow {...props} />
   if (T.cardLayout === 'zarif')     return <ZarifCard {...props} />
   if (T.cardLayout === 'gece')      return <GeceRow {...props} />

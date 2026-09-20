@@ -17,6 +17,9 @@ const cfg = {
 
 // databaseURL + apiKey varsa Firebase'i gerçek modda çalıştır
 export const FIREBASE_ENABLED = Boolean(cfg.apiKey && cfg.databaseURL)
+if (!FIREBASE_ENABLED && import.meta.env.PROD && import.meta.env.MODE !== 'demo') {
+  throw new Error('Canlı veritabanı yapılandırılmamış. Sipariş kabul edilemiyor.')
+}
 
 let db = null
 if (FIREBASE_ENABLED) {

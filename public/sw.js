@@ -1,6 +1,6 @@
 // Minimal service worker — uygulama kabuğu için ağ öncelikli, çevrimdışı yedekli.
 // Menü/sipariş verisi Firebase'den canlı gelir; SW yalnızca kabuğu hızlandırır.
-const CACHE = 'serviq-marketing-v2'
+const CACHE = 'serviq-safe-routes-v3'
 
 self.addEventListener('install', (e) => {
   self.skipWaiting()
@@ -23,8 +23,10 @@ self.addEventListener('fetch', (e) => {
   // HTML gezinmeleri: ağ öncelikli, çevrimdışıysa cache
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req).then((r) => { caches.open(CACHE).then((c) => c.put('/', r.clone())); return r })
-        .catch(() => caches.match('/'))
+      fetch(req).then((r) => {
+        if (r.ok) { const copy = r.clone(); e.waitUntil(caches.open(CACHE).then(c => c.put(req, copy))) }
+        return r
+      }).catch(async () => (await caches.match(req)) || new Response('İnternet bağlantısı yok. Sipariş göndermek için bağlantınızı kontrol edip tekrar deneyin.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }))
     )
     return
   }
