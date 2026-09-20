@@ -1,5 +1,19 @@
 # Third-party notices
 
+## QR print fonts (SIL Open Font License 1.1)
+
+Unmodified font binaries served by Google Fonts, self-hosted in `public/fonts/qr/`.
+Full copyright and license files accompany each font in that directory.
+Source collection: https://github.com/google/fonts/tree/main/ofl
+
+- Bungee — The Bungee Project Authors (2023), `Bungee-OFL.txt`.
+- Cormorant Garamond — The Cormorant Project Authors (2015), `Cormorant-OFL.txt`.
+- Oswald — The Oswald Project Authors (2016), `Oswald-OFL.txt`.
+- Pacifico — The Pacifico Project Authors (2018), `Pacifico-OFL.txt`.
+- Space Grotesk — The Space Grotesk Project Authors (2020), `Space-OFL.txt`.
+
+QR sector illustrations and print layouts are original SVG/CSS in this project.
+
 Restaurant menu tile animation uses an adapted SVG pattern structure from
 Magic UI's Animated Grid Pattern. Other food-themed compositions and CSS
 animations are custom Serviq implementations. Reduced motion and visibility

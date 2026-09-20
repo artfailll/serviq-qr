@@ -19,70 +19,10 @@ import {
 import { money, clockMs } from '../../lib/format'
 import { Modal } from '../../components/ui'
 import PaymentModal from '../../components/PaymentModal'
-import { brandedTableQR } from '../../lib/tableQr'
 import NfcSetup from './NfcSetup'
+import QrPrintStudio from './QrPrintStudio'
 
 
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
-  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
-
-async function printAllQRs(tables, bizId, profile, win) {
-  const bizName = profile?.name || 'Restoran'
-  const brandColor = /^#[0-9a-f]{6}$/i.test(profile?.brandColor) ? profile.brandColor : '#f97316'
-
-  // Her masa için QR SVG üret
-  const items = await Promise.all(
-    tables.map(async (t) => {
-      const svg = await brandedTableQR(bizId, t.no, bizName)
-      return { no: t.no, name: t.name, svg }
-    })
-  )
-
-  const html = `<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<title>${esc(bizName)} · QR Kodlar</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;900&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #f8fafc; padding: 24px; }
-  h1 { text-align: center; font-size: 22px; font-weight: 900; color: #1e293b; margin-bottom: 6px; }
-  .sub { text-align: center; font-size: 13px; color: #94a3b8; margin-bottom: 24px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-  .card { background: #fff; border-radius: 20px; padding: 16px 16px 14px; text-align: center;
-          border: 2px solid ${brandColor}33; break-inside: avoid; }
-  .qr svg { width: 200px; height: 200px; display: block; margin: 0 auto; }
-  .badge { display: inline-block; background: ${brandColor}; color: #fff; font-size: 14px;
-           font-weight: 900; padding: 5px 18px; border-radius: 50px; margin: 10px 0 8px; }
-  .hint { font-size: 10px; color: #cbd5e1; font-weight: 600; }
-  @media print {
-    body { background: #fff; padding: 10px; }
-    .grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .no-print { display: none; }
-  }
-</style>
-</head>
-<body>
-<h1>${esc(bizName)}</h1>
-<p class="sub">Tüm masa QR kodları · serviq.com.tr · ${new Date().toLocaleDateString('tr-TR')}</p>
-<button class="no-print" onclick="window.print()" style="display:block;margin:0 auto 20px;background:${brandColor};color:#fff;border:none;padding:10px 28px;border-radius:50px;font-size:14px;font-weight:800;cursor:pointer;">
-  🖨 Yazdır / PDF Olarak Kaydet
-</button>
-<div class="grid">
-  ${items.map(it => `
-  <div class="card">
-    <div class="qr">${it.svg}</div>
-    <div class="badge">${esc(String(it.name || ('Masa ' + it.no)).toLocaleUpperCase('tr-TR'))}</div>
-    <div class="hint">Kameranızla okutun · sipariş verin</div>
-  </div>`).join('')}
-</div>
-</body>
-</html>`
-
-  win.document.write(html)
-  win.document.close()
-}
 
 export default function TableMap() {
   const bizId = useBusinessId()
@@ -91,8 +31,7 @@ export default function TableMap() {
   const layout = useLayout(bizId)
   const profile = useProfile(bizId)
   const { staffId: cashierId } = useActiveStaff(bizId)
-  const [generating, setGenerating] = useState(false)
-  const [qrError, setQrError] = useState('')
+  const [qrStudioOpen, setQrStudioOpen] = useState(false)
   useTicker(1000)
 
   const [selected, setSelected] = useState(null) // tableId
@@ -201,21 +140,12 @@ export default function TableMap() {
           <div className="ml-auto flex items-center gap-2">
             <span className="text-sm text-ink-400">{tables.length} masa</span>
             <button
-              onClick={async () => {
-                setQrError('')
-                const win = window.open('', '_blank')
-                if (!win) { setQrError('Yazdırmak için açılır pencereye izin verin.'); return }
-                win.opener = null
-                setGenerating(true)
-                try { await printAllQRs(tables, bizId, profile, win) }
-                catch { win.close(); setQrError('QR üretilemedi. Tekrar deneyin.') }
-                finally { setGenerating(false) }
-              }}
-              disabled={generating || tables.length === 0}
+              onClick={() => setQrStudioOpen(true)}
+              disabled={tables.length === 0}
               className="btn-outline !py-2"
             >
               <QrCode className="h-4 w-4" />
-              {generating ? 'Üretiliyor...' : `QR Yazdır (${tables.length})`}
+              {`QR Tasarla / Yazdır (${tables.length})`}
             </button>
             <button onClick={handleAddTable} className="btn-primary !py-2">
               <Plus className="h-4 w-4" /> Masa Ekle
@@ -224,7 +154,7 @@ export default function TableMap() {
         )}
       </div>
 
-      {qrError && <p role="alert" className="text-red-700 mb-4">{qrError}</p>}
+      <QrPrintStudio open={qrStudioOpen} onClose={() => setQrStudioOpen(false)} bizId={bizId} tables={tables} profile={profile}/>
       <NfcSetup bizId={bizId} tables={tables} profile={profile} />
       {/* Masa kartları */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">

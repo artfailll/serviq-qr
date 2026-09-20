@@ -115,8 +115,9 @@ try {
   report.checks.push('kitchen/ready/served/payment synced; correct loyalty credited')
   // Reload admin to close the selected-table modal, then decode actual printed QR.
   await admin.reload()
+  await admin.getByRole('button',{name:/QR Tasarla/}).click()
   const popupPromise=admin.waitForEvent('popup')
-  await admin.getByRole('button',{name:/QR Yazdır/}).click()
+  await admin.getByRole('button',{name:'Seçili tasarımı yazdır / PDF',exact:true}).click()
   const popup=await popupPromise
   const qr=popup.locator('.qr svg').first()
   await qr.waitFor()
@@ -128,6 +129,27 @@ try {
   assert.equal(target.searchParams.get('masa'),'5')
   report.checks.push('printed branded QR decodes to correct tenant/table')
   await popup.close()
+  for(const [name,key] of [['Ocakbaşı','kebap'],['Döner Sokağı','doner'],['Tatlı Molası','tatli'],['Serin Mola','icecek'],['İmza','imza']]){
+    await admin.getByRole('button',{name:new RegExp(`^${name}`)}).click()
+    await admin.frameLocator('iframe[title="QR baskı önizlemesi"]').locator(`[data-qr-theme="${key}"]`).waitFor()
+  }
+  await admin.getByLabel('Yazdırılacak masalar').selectOption('custom-table-6')
+  await admin.getByRole('button',{name:'İşletmenin varsayılanı yap',exact:true}).click()
+  await until(async()=>await read('/menu/profile/qrPrintTheme')==='imza','QR template saved')
+  const singlePopupPromise=admin.waitForEvent('popup')
+  await admin.getByRole('button',{name:'Seçili tasarımı yazdır / PDF',exact:true}).click()
+  const singlePopup=await singlePopupPromise
+  await singlePopup.locator('[data-qr-theme="imza"]').waitFor()
+  assert.equal(await singlePopup.locator('.qr-card').count(),1)
+  const singlePng=PNG.sync.read(await singlePopup.locator('.qr svg').screenshot())
+  assert.equal(new URL(jsQR(new Uint8ClampedArray(singlePng.data),singlePng.width,singlePng.height).data).searchParams.get('masa'),'6')
+  await singlePopup.close()
+  await admin.setViewportSize({width:390,height:844})
+  assert(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
+  await admin.screenshot({path:path.join(out,'qr-studio-mobile.png')})
+  await admin.setViewportSize({width:1365,height:900})
+  report.checks.push('five QR template previews, saved default and single-table print work; mobile dialog fits')
+  await admin.getByRole('button',{name:'Kapat',exact:true}).click()
   await admin.getByRole('button',{name:'İşletme OS',exact:true}).click()
   await admin.getByRole('button',{name:'Müşteri & Sadakat',exact:true}).click()
   await admin.getByLabel('Ödül için müşteri').selectOption('p0000000000')
