@@ -9,6 +9,7 @@ import ProfileEditor from '../components/admin/ProfileEditor'
 import OperationsHub from '../components/admin/OperationsHub'
 import AdminLogin, { useAdminAuthState } from './AdminLogin'
 import { playNewOrder, primeAudio, useSoundPref, setSoundPref } from '../lib/sound'
+import { useBusinessId } from '../lib/store'
 
 const TABS = [
   { key: 'tables', label: 'Masa Haritası', icon: LayoutGrid },
@@ -27,6 +28,7 @@ const HEADERS = {
 }
 
 export default function Admin() {
+  const bizId = useBusinessId()
   const [tab, setTab] = useState('tables')
   const [justAuthed, setJustAuthed] = useState(false)
   const status = useAdminAuthState()
@@ -89,11 +91,11 @@ export default function Admin() {
           </nav>
 
           <div className="hidden lg:flex flex-col gap-2 p-3">
-            <Link to="/kasa" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-300 hover:bg-white/5 hover:text-white transition-colors">
+            <Link to={`/kasa?isletme=${encodeURIComponent(bizId)}`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-300 hover:bg-white/5 hover:text-white transition-colors">
               <Monitor className="h-5 w-5" />
               Kasa Ekranı
             </Link>
-            <Link to="/garson" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-300 hover:bg-white/5 hover:text-white transition-colors">
+            <Link to={`/garson?isletme=${encodeURIComponent(bizId)}`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-300 hover:bg-white/5 hover:text-white transition-colors">
               <UtensilsCrossed className="h-5 w-5" />
               Garson Ekranı
             </Link>

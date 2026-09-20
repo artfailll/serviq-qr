@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import {
   subscribe,
   pushItem,
+  pushItemConfirmed,
   setValue,
   updateValue,
   removeValue,
@@ -13,6 +14,7 @@ import {
   now,
 } from './db'
 import { dateKey } from './format'
+import { getLoyaltyRules, applyLoyaltyCredit, applyRewardRedemption } from './loyalty'
 
 // ───────── İşletme Context ─────────
 export const BusinessContext = createContext(null)
@@ -22,9 +24,11 @@ export const useBusinessId = () => useContext(BusinessContext)
 const p = (bizId, path) => `businesses/${bizId}/${path}`
 
 // ───────── Genel abonelik hook'ları ─────────
-export function useValue(path, initial = null) {
+export function useValue(path, initialValue) {
+  const initial = arguments.length > 1 ? initialValue : null
   const [val, setVal] = useState(initial)
   useEffect(() => {
+    setVal(initial)
     if (!path) return
     const unsub = subscribe(path, (v) => setVal(v))
     return () => unsub && unsub()
@@ -283,7 +287,6 @@ export async function restoreOrderStock(bizId, orderId, order = null) {
 // ───────── CRM: sipariş → müşteri kartı ─────────
 // Telefon varsa ondan, yoksa isimden türetilen sabit anahtar. Aynı müşteri
 // elle de eklense siparişten de gelse tek kartta birleşir.
-const POINT_PER_TL = 10
 export function customerKey(customer) {
   const digits = String(customer?.phone || '').replace(/\D/g, '')
   if (digits.length >= 7) return `p${digits}`
@@ -293,39 +296,28 @@ export function customerKey(customer) {
 }
 
 // Hesap kapanınca ziyaret/harcama/puan müşteri kartına işlenir.
-// orders/{id}/crmApplied bayrağı çift tahsilatta puanın iki kez yazılmasını önler.
+// Müşteri kaydındaki sipariş defteri aynı siparişin iki kez puan kazanmasını önler.
 async function creditCustomer(bizId, orderId, order) {
-  try {
-    const target = order || (await readValue(p(bizId, `orders/${orderId}`)))
-    const c = target?.customer
-    if (!c?.consent || !(c.name || c.phone)) return null
-    const key = customerKey(c)
-    if (!key) return null
+  const target = order || await readValue(p(bizId, `orders/${orderId}`))
+  if (!target?.customer?.consent || !target.customer.phone) return null
+  const key = customerKey(target.customer)
+  if (!key) return null
+  const profile = await readValue(p(bizId, 'menu/profile'))
+  const at = now()
+  // Ledger and balance change atomically on the same customer. A retry can
+  // safely resume after a lost connection without awarding the order twice.
+  await transactValue(p(bizId, `crm/customers/${key}`), cur => applyLoyaltyCredit(cur, orderId, target, profile, at))
+  return key
+}
 
-    const claimed = await transactValue(
-      p(bizId, `orders/${orderId}/crmApplied`),
-      (cur) => (cur ? undefined : true),
-    )
-    if (claimed === null) return null
-
-    const spend = Math.max(0, Number(target.total) || 0)
-    await transactValue(p(bizId, `crm/customers/${key}`), (cur) => {
-      const base = cur || { visits: 0, spend: 0, points: 0, createdAt: now() }
-      return {
-        ...base,
-        name: c.name || base.name || '',
-        phone: c.phone || base.phone || '',
-        consent: true,
-        visits: (Number(base.visits) || 0) + 1,
-        spend: round3((Number(base.spend) || 0) + spend),
-        points: (Number(base.points) || 0) + Math.floor(spend / POINT_PER_TL),
-        lastOrderId: orderId,
-        lastVisitAt: now(),
-        updatedAt: now(),
-      }
-    })
-    return key
-  } catch { return null }
+export async function redeemLoyaltyReward(bizId, customerId, redemptionId, staffId) {
+  const profile = await readValue(p(bizId, 'menu/profile'))
+  const rules = getLoyaltyRules(profile)
+  if (!rules.enabled) throw new Error('Sadakat programı yapılandırılmamış.')
+  const at = now()
+  const result = await transactValue(p(bizId, `crm/customers/${customerId}`), cur => applyRewardRedemption(cur, redemptionId, rules, staffId, at))
+  if (!result) throw new Error('Puan yetersiz veya bu ödül işlemi zaten kaydedilmiş.')
+  return result
 }
 
 // ───────── Aktif personel (cihaz başına seçilir) ─────────
@@ -431,40 +423,39 @@ export const useOrders = (bizId) =>
   useList(bizId ? p(bizId, 'orders') : null,
     (a, b) => (b.createdAt || 0) - (a.createdAt || 0))
 
-export function createOrder(bizId, { tableId, tableNo, items, note, customer, staffId }) {
-  const total = items.reduce((s, it) => s + it.price * it.qty, 0)
+export async function createOrder(bizId, { tableId, tableNo, items, note, customer, staffId }) {
+  if (!bizId || !tableId || !Number.isInteger(tableNo) || tableNo < 1) throw new Error('Masa tanımlı değil. Masadaki QR kodu tekrar okutun.')
+  if (!items?.length || items.some(it => !it.productId || !Number.isFinite(it.price) || it.price < 0 || !Number.isInteger(it.qty) || it.qty < 1)) throw new Error('Sepet bilgileri geçersiz. Ürünleri kontrol edin.')
+  const total = Math.round(items.reduce((s, it) => s + it.price * it.qty, 0) * 100) / 100
   const count = items.reduce((s, it) => s + it.qty, 0)
-  const id = pushItem(p(bizId, 'orders'), {
+  const id = await pushItemConfirmed(p(bizId, 'orders'), {
     tableId, tableNo: tableNo ?? null, items, total, count,
     note: note || '', customer: customer?.name || customer?.phone ? { name: String(customer.name || '').slice(0, 100), phone: String(customer.phone || '').slice(0, 30), consent: customer.consent !== false } : null,
     // Siparişi kim girdi — garson ekranında seçili personel, QR'dan gelirse null
     staffId: staffId || null,
     status: 'new', createdAt: now(), updatedAt: now(),
   })
-  bumpProductStats(bizId, items)
-  // Stok düşümü arka planda ilerler; sipariş kaydı beklemeden döner ki
-  // müşteri ekranı anında onay görsün.
-  if (id) consumeOrderStock(bizId, id, items, tableNo)
+  bumpProductStats(bizId, items).catch(() => {
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('serviq:data-error', { detail: 'stats-update' }))
+  })
+  // Yan etkiler yalnızca sunucudan sipariş kaydı onayı geldikten sonra başlar.
+  if (id) consumeOrderStock(bizId, id, items, tableNo).catch(() => {
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('serviq:data-error', { detail: 'stock-update' }))
+  })
   return id
 }
 
 // ───────── Satış istatistiği (otomatik "Çok Satan" rozetleri) ─────────
 // Ürün başına toplam satış adedini menu/stats altında tutar.
-// (Tek seferlik okuma + yazma; yoğunlukta küçük sapma kabul edilebilir.)
+// Transaction avoids losing simultaneous orders or recursive cached listeners.
 function bumpProductStats(bizId, items) {
-  try {
-    let unsub = null
-    unsub = subscribe(p(bizId, 'menu/stats'), (val) => {
-      unsub?.()
-      const stats = val || {}
-      const patch = {}
-      items.forEach((it) => {
-        if (!it.productId) return
-        patch[it.productId] = (stats[it.productId] || 0) + it.qty
-      })
-      if (Object.keys(patch).length) updateValue(p(bizId, 'menu/stats'), patch)
-    })
-  } catch {}
+  return transactValue(p(bizId, 'menu/stats'), value => {
+    const stats = { ...value }
+    for (const item of items) {
+      if (item.productId) stats[item.productId] = (Number(stats[item.productId]) || 0) + item.qty
+    }
+    return stats
+  })
 }
 
 export const useProductStats = (bizId) =>
@@ -495,13 +486,13 @@ export const PAYMENT_LABELS = PAYMENT_METHODS.reduce((m, p) => { m[p.key] = p.la
 
 // Hesabı kapatır: tahsilatı kasiyere yazar ve müşteri kartına ziyaret/puan işler.
 // `order` verilirse ek okuma yapılmaz (kasa ve masa haritası siparişi elinde tutar).
-export function markOrderPaid(bizId, id, paymentMethod = 'nakit', { order = null, cashierId = null } = {}) {
-  updateValue(p(bizId, `orders/${id}`), {
+export async function markOrderPaid(bizId, id, paymentMethod = 'nakit', { order = null, cashierId = null } = {}) {
+  await updateValue(p(bizId, `orders/${id}`), {
     status: 'paid', paymentMethod,
     cashierId: cashierId || order?.cashierId || null,
     paidAt: now(), updatedAt: now(),
   })
-  creditCustomer(bizId, id, order)
+  await creditCustomer(bizId, id, order)
   return id
 }
 
@@ -561,7 +552,8 @@ export const useCalls = (bizId) =>
     (a, b) => (b.createdAt || 0) - (a.createdAt || 0))
 
 export function createCall(bizId, { tableId, tableNo, type }) {
-  return pushItem(p(bizId, 'calls'), {
+  if (!tableId || !Number.isInteger(tableNo) || tableNo < 1) return Promise.reject(new Error('Geçerli bir masa seçin.'))
+  return pushItemConfirmed(p(bizId, 'calls'), {
     tableId, tableNo: tableNo ?? null, type, status: 'pending', createdAt: now(),
   })
 }
@@ -593,27 +585,18 @@ export const removeTable = (bizId, id) =>
 // Günü kapat: siparişleri SİLMEZ, tarihe göre arşive taşır — geçmiş ciro
 // raporlarının kaybolmaması için. Aktif ekranlar (kasa/bugün) temizlenir.
 export async function resetDay(bizId) {
-  const orders = await new Promise((resolve) => {
-    let unsub = null
-    unsub = subscribe(p(bizId, 'orders'), (val) => { unsub?.(); resolve(val || {}) })
-  })
-
-  // Siparişleri kendi gününe göre grupla (bazen birden çok gün birikmiş olabilir)
-  const byDay = {}
+  const orders = await readValue(p(bizId, 'orders')) || {}
+  // Only settled snapshots move. Never delete an entire collection: a new
+  // order can arrive while the cashier is closing the day.
+  const patch = {}
   Object.entries(orders).forEach(([id, o]) => {
-    const day = dateKey(o.createdAt)
-    byDay[day] = byDay[day] || {}
-    byDay[day][id] = o
+    if (o.status !== 'paid' && o.status !== 'cancelled') return
+    const day = dateKey(o.paidAt || o.createdAt)
+    patch[`archive/${day}/${id}`] = o
+    patch[`orders/${id}`] = null
   })
-
-  // Her günün verisini arşive ekle (üzerine yazmaz, birleştirir)
-  await Promise.all(
-    Object.entries(byDay).map(([day, dayOrders]) => updateValue(p(bizId, `archive/${day}`), dayOrders))
-  )
-
-  removeValue(p(bizId, 'orders'))
-  removeValue(p(bizId, 'calls'))
-  removeValue(p(bizId, 'layout'))
+  if (Object.keys(patch).length) await updateValue(p(bizId, ''), patch)
+  return Object.keys(patch).length / 2
 }
 
 // ───────── Arşiv (geçmiş gün istatistikleri) ─────────

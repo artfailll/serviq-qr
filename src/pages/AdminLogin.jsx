@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Lock, Eye, EyeOff, UtensilsCrossed } from 'lucide-react'
 import { useBusinessId, useValue } from '../lib/store'
+import { IS_DEMO } from '../lib/db'
 
 // Oturum boyunca girişi hatırla (sekme kapanınca sıfırlanır)
 const SESSION_KEY = 'sofra_admin_auth'
@@ -23,7 +24,11 @@ function probeServer(bizId) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bizId, pin: '' }),
-    }).then((r) => r.json()).then((d) => !!d.configured).catch(() => false))
+      signal: AbortSignal.timeout(10000),
+    }).then((r) => { if (!r.ok) throw new Error('Sunucuya erişilemiyor'); return r.json() }).then((d) => {
+      if (typeof d.configured !== 'boolean') throw new Error('Geçersiz doğrulama yanıtı')
+      return d.configured
+    }).catch(() => { probeCache.delete(bizId); return 'error' }))
   }
   return probeCache.get(bizId)
 }
@@ -33,7 +38,9 @@ export async function verifyAdminPin(bizId, pin) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ bizId, pin }),
+    signal: AbortSignal.timeout(10000),
   })
+  if (!r.ok) throw new Error('Giriş sunucusuna erişilemiyor.')
   return r.json()
 }
 
@@ -54,9 +61,10 @@ export function useAdminAuthState() {
   }, [bizId])
 
   // initial = undefined → "yükleniyor"u "şifre yok"tan ayırt edebilmek için
-  const config = useValue(bizId ? `businesses/${bizId}/config` : null, undefined)
+  const config = useValue(bizId && onServer === false ? `businesses/${bizId}/config` : null, undefined)
 
   if (onServer === null) return 'loading'
+  if (onServer === 'error') return IS_DEMO ? 'open' : 'locked'
 
   if (onServer) {
     try {
@@ -68,7 +76,7 @@ export function useAdminAuthState() {
   // ── Eski yol (şifre henüz taşınmamış işletmeler) ──
   if (config === undefined) return 'loading'
   const password = config?.password
-  if (!password) return 'open'
+  if (!password) return IS_DEMO ? 'open' : 'locked'
   try {
     if (sessionStorage.getItem(SESSION_KEY) === `${bizId}:${password}`) return 'authed'
   } catch {}
@@ -83,7 +91,9 @@ export function setAdminAuth(bizId, password) {
 
 export default function AdminLogin({ onSuccess }) {
   const bizId = useBusinessId()
-  const config = useValue(bizId ? `businesses/${bizId}/config` : null)
+  const [legacy, setLegacy] = useState(false)
+  useEffect(() => { probeServer(bizId).then(v => setLegacy(v === false)) }, [bizId])
+  const config = useValue(bizId && legacy ? `businesses/${bizId}/config` : null)
   const correctPassword = config?.password
   const bizName = useValue(bizId ? `businesses/${bizId}/menu/profile/name` : null)
 
@@ -92,6 +102,7 @@ export default function AdminLogin({ onSuccess }) {
   const [error, setError] = useState(false)
   const [shake, setShake] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [connectionError, setConnectionError] = useState('')
 
   function reject() {
     setError(true)
@@ -104,20 +115,22 @@ export default function AdminLogin({ onSuccess }) {
   async function attempt() {
     if (busy || !input) return
     setBusy(true)
+    setConnectionError('')
     try {
       // Önce sunucu doğrulaması; bu işletme taşınmamışsa eski yola düş
-      const res = await verifyAdminPin(bizId, input).catch(() => null)
+      const res = await verifyAdminPin(bizId, input)
       if (res?.configured) {
         if (res.ok) { setAdminAuth(bizId, 'ok'); onSuccess() } else { reject() }
         return
       }
-      if (correctPassword && input === correctPassword) {
+      if (res?.configured === false && correctPassword && input === correctPassword) {
         setAdminAuth(bizId, correctPassword)
         onSuccess()
       } else {
         reject()
       }
-    } finally {
+    } catch { setConnectionError('Giriş doğrulanamadı. Bağlantıyı kontrol edip tekrar deneyin; panel açılmadı.') }
+    finally {
       setBusy(false)
     }
   }
@@ -144,6 +157,7 @@ export default function AdminLogin({ onSuccess }) {
             <p className="text-sm text-ink-400 mt-1">Yönetim Paneli</p>
           </div>
 
+          {connectionError && <p role="alert" className="text-red-700 mb-4">{connectionError}</p>}
           {/* Şifre alanı */}
           <div className="space-y-4">
             <div>

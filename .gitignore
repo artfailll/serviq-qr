@@ -1,5 +1,8 @@
 node_modules
 dist
+dist-demo
+kurulum-paketleri/
+outputs/
 dist-ssr
 *.local
 .env
@@ -7,3 +10,6 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 npm-debug.log*
+
+# Local Netlify folder
+.netlify

@@ -24,6 +24,34 @@ import {
 
 export const IS_DEMO = !FIREBASE_ENABLED
 
+function reportDataError(error) {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('serviq:data-error', { detail: error.code || 'unknown' }))
+}
+
+export function subscribeConnection(cb) {
+  if (IS_DEMO) { cb(false); return () => {} }
+  return onValue(ref(fdb, '.info/connected'), snap => cb(snap.val() === true), () => cb(false))
+}
+
+async function requireConnection() {
+  if (IS_DEMO) return
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new Error('Sunucu bağlantısı yok. Sipariş gönderilmedi; tekrar deneyin.')
+  await new Promise((resolve, reject) => {
+    let off = () => {}
+    let settled = false
+    const finish = error => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      // Firebase can deliver its cached connection value synchronously.
+      queueMicrotask(() => off())
+      error ? reject(error) : resolve()
+    }
+    const timer = setTimeout(() => finish(new Error('Sunucu bağlantısı yok. Sipariş gönderilmedi; tekrar deneyin.')), 5000)
+    off = subscribeConnection(connected => { if (connected) finish() })
+  })
+}
+
 // ===== Ortak yardımcılar =====
 export const now = () => Date.now()
 export const tsField = () => (IS_DEMO ? Date.now() : serverTimestamp())
@@ -32,13 +60,13 @@ export const tsField = () => (IS_DEMO ? Date.now() : serverTimestamp())
 //  FIREBASE ADAPTÖRÜ
 // ============================================================
 const firebaseAdapter = {
-  subscribe(path, cb) {
+  subscribe(path, cb, onError = reportDataError) {
     const r = ref(fdb, path)
-    return onValue(r, (snap) => cb(snap.val()))
+    return onValue(r, (snap) => cb(snap.val()), onError)
   },
   push(path, value) {
     const r = fPush(ref(fdb, path))
-    fSet(r, value)
+    fSet(r, value).catch(reportDataError)
     return r.key
   },
   set(path, value) {
@@ -163,9 +191,8 @@ const localAdapter = {
   },
   update(path, value) {
     let tree = readTree()
-    const existing = getAtPath(tree, path)
-    const merged = { ...(existing && typeof existing === 'object' ? existing : {}), ...value }
-    tree = setAtPath(tree, path, merged)
+    // Match Firebase multi-location updates, including nested paths/removals.
+    for (const [key, item] of Object.entries(value)) tree = setAtPath(tree, `${path}/${key}`, item)
     writeTree(tree)
     notifyAll()
     broadcastChange()
@@ -197,8 +224,16 @@ const localAdapter = {
 // ============================================================
 const adapter = IS_DEMO ? localAdapter : firebaseAdapter
 
-export const subscribe = (path, cb) => adapter.subscribe(path, cb)
+export const subscribe = (path, cb, onError) => adapter.subscribe(path, cb, onError)
 export const pushItem = (path, value) => adapter.push(path, value)
+// A push key is not a server acknowledgement. Orders/calls must await this.
+export async function pushItemConfirmed(path, value) {
+  await requireConnection()
+  if (IS_DEMO) return localAdapter.push(path, value)
+  const target = fPush(ref(fdb, path))
+  await fSet(target, value)
+  return target.key
+}
 export const setValue = (path, value) => adapter.set(path, value)
 export const updateValue = (path, value) => adapter.update(path, value)
 export const removeValue = (path) => adapter.remove(path)

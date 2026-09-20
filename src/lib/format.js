@@ -3,7 +3,8 @@
 const tl = new Intl.NumberFormat('tr-TR', {
   style: 'currency',
   currency: 'TRY',
-  maximumFractionDigits: 0,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 })
 
 export const money = (n) => tl.format(Number(n) || 0)

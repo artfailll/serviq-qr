@@ -33,6 +33,7 @@ import {
   PAYMENT_LABELS,
 } from '../lib/store'
 import StaffPicker from '../components/StaffPicker'
+import AdminLogin, { useAdminAuthState } from './AdminLogin'
 import { money, clockMs, timeOfDay, isToday } from '../lib/format'
 import { EmptyState, DemoBadge } from '../components/ui'
 import PaymentModal from '../components/PaymentModal'
@@ -54,6 +55,14 @@ const NEXT_LABEL = { new: 'Mutfağa Al', kitchen: 'Hazır', ready: 'Servis Et' }
 const OVERDUE_MIN = 10
 
 export default function Cashier() {
+  const status = useAdminAuthState()
+  const [justAuthed, setJustAuthed] = useState(false)
+  if (status === 'loading') return <div className="min-h-screen grid place-items-center" role="status">Kasa erişimi doğrulanıyor…</div>
+  if (status !== 'open' && status !== 'authed' && !justAuthed) return <AdminLogin onSuccess={() => setJustAuthed(true)} />
+  return <CashierBoard />
+}
+
+function CashierBoard() {
   const bizId = useBusinessId()
   const orders = useOrders(bizId)
   const calls = useCalls(bizId)
@@ -105,11 +114,11 @@ export default function Cashier() {
           <div className="ml-auto flex items-center gap-2">
             <DemoBadge />
             <StaffPicker bizId={bizId} compact />
-            <Link to="/garson" className="btn-outline !py-2 hidden sm:inline-flex">
+            <Link to={`/garson?isletme=${encodeURIComponent(bizId)}`} className="btn-outline !py-2 hidden sm:inline-flex">
               <UtensilsCrossed className="h-4 w-4" />
               Garson
             </Link>
-            <Link to="/yonetim" className="btn-outline !py-2 hidden sm:inline-flex">
+            <Link to={`/yonetim?isletme=${encodeURIComponent(bizId)}`} className="btn-outline !py-2 hidden sm:inline-flex">
               <LayoutDashboard className="h-4 w-4" />
               Yönetim
             </Link>
@@ -329,8 +338,8 @@ function OrderCard({ order, accent, bizId, profile, cashierId }) {
         onClose={() => setPayOpen(false)}
         total={order.total}
         subtitle={`Masa ${order.tableNo ?? '?'} · tahsilat`}
-        onSelect={(method) => {
-          markOrderPaid(bizId, order.id, method, { order, cashierId })
+        onSelect={async (method) => {
+          await markOrderPaid(bizId, order.id, method, { order, cashierId })
           setPayOpen(false)
           // Ödeme sonrası fiş otomatik bassın (ayar açıksa)
           if (profile?.printBillOnPay) printBill(order, profile, PAYMENT_LABELS[method] || method)

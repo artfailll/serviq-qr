@@ -1,4 +1,5 @@
 import { Banknote, CreditCard, Ticket } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { Modal } from './ui'
 import { PAYMENT_METHODS } from '../lib/store'
 import { money } from '../lib/format'
@@ -11,8 +12,20 @@ const ICONS = {
 }
 
 export default function PaymentModal({ open, onClose, onSelect, total, subtitle }) {
+  const [busy,setBusy] = useState(false)
+  const [error,setError] = useState('')
+  const lock = useRef(false)
+  async function select(method) {
+    if (lock.current) return
+    lock.current=true; setBusy(true); setError('')
+    try { await onSelect(method) }
+    catch { setError('İşlem tamamen doğrulanamadı. Sipariş durumunu kontrol edin; tekrar fiziksel tahsilat yapmayın.') }
+    finally { lock.current=false; setBusy(false) }
+  }
   return (
-    <Modal open={open} onClose={onClose} title="Ödeme Yöntemi">
+    <Modal open={open} onClose={() => { if (!lock.current) { setError(''); onClose() } }} title="Ödeme Yöntemi">
+      {error && <p role="alert" className="text-red-700 mb-3">{error}</p>}
+      {busy && <p role="status" className="mb-3">Sunucu onayı bekleniyor…</p>}
       {total != null && (
         <div className="mb-4 flex items-center justify-between rounded-2xl bg-ink-100 px-4 py-3">
           <span className="text-sm font-semibold text-ink-500">
@@ -27,7 +40,8 @@ export default function PaymentModal({ open, onClose, onSelect, total, subtitle 
           return (
             <button
               key={m.key}
-              onClick={() => onSelect(m.key)}
+              disabled={busy}
+              onClick={() => select(m.key)}
               className="flex items-center gap-2.5 rounded-2xl border-2 border-ink-200 bg-white px-3.5 py-3.5
                          text-left font-bold text-ink-800 transition-all duration-150
                          hover:border-brand-400 hover:bg-brand-50 active:scale-[.98]"

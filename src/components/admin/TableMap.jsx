@@ -19,65 +19,22 @@ import {
 import { money, clockMs } from '../../lib/format'
 import { Modal } from '../../components/ui'
 import PaymentModal from '../../components/PaymentModal'
-import QRCode from 'qrcode'
+import { brandedTableQR } from '../../lib/tableQr'
+import NfcSetup from './NfcSetup'
 
-const SITE = 'https://serviq.com.tr'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
-// QR'ın ortasına işletme adı + masa numarası yerleştirir.
-// Bunu yapabilmek için QR'ın "H" hata düzeltme seviyesinde üretilmesi şart:
-// H seviyesi kodun ~%30'u kapansa bile okunmasına izin verir, buradaki kutu
-// alanın ~%12'si — güvenli aralıkta.
-function brandQr(svg, bizName, tableLabel, brandColor) {
-  const m = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/)
-  if (!m) return svg
-  const size = Number(m[1])
-
-  const bw = size * 0.46
-  const bh = size * 0.27
-  const x = (size - bw) / 2
-  const y = (size - bh) / 2
-
-  const name = String(bizName || '').toLocaleUpperCase('tr-TR').slice(0, 20)
-  // Yazı kutuya sığsın diye font boyutu karakter sayısına göre küçülür
-  const nameFont = Math.min(bh * 0.30, (bw * 0.92) / Math.max(name.length * 0.58, 1))
-  const tableFont = bh * 0.40
-  const pad = size * 0.012
-
-  const overlay =
-    `<g shape-rendering="auto" font-family="'Plus Jakarta Sans',Helvetica,Arial,sans-serif">` +
-      `<rect x="${x - pad}" y="${y - pad}" width="${bw + pad * 2}" height="${bh + pad * 2}" ` +
-        `rx="${bh * 0.26}" fill="#ffffff"/>` +
-      `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="${bh * 0.22}" ` +
-        `fill="#ffffff" stroke="${brandColor}" stroke-width="${size * 0.011}"/>` +
-      `<text x="${size / 2}" y="${y + bh * 0.42}" text-anchor="middle" ` +
-        `font-size="${nameFont}" font-weight="800" fill="#1e293b">${esc(name)}</text>` +
-      `<text x="${size / 2}" y="${y + bh * 0.85}" text-anchor="middle" ` +
-        `font-size="${tableFont}" font-weight="900" fill="${brandColor}">${esc(tableLabel)}</text>` +
-    `</g>`
-
-  return svg.replace('</svg>', `${overlay}</svg>`)
-}
-
-async function printAllQRs(tables, bizId, profile) {
+async function printAllQRs(tables, bizId, profile, win) {
   const bizName = profile?.name || 'Restoran'
-  const brandColor = profile?.brandColor || '#f97316'
+  const brandColor = /^#[0-9a-f]{6}$/i.test(profile?.brandColor) ? profile.brandColor : '#f97316'
 
   // Her masa için QR SVG üret
   const items = await Promise.all(
     tables.map(async (t) => {
-      // encodeURIComponent şart: işletme kimliğinde boşluk veya Türkçe harf
-      // olabiliyor ("CAFE SİNAN") — ham hâli bozuk bağlantı üretiyordu.
-      const url = `${SITE}/menu?isletme=${encodeURIComponent(bizId)}&masa=${encodeURIComponent(t.no)}`
-      const raw = await QRCode.toString(url, {
-        type: 'svg', width: 300, margin: 2,
-        errorCorrectionLevel: 'H',
-        color: { dark: '#1e293b', light: '#ffffff' },
-      })
-      const label = String(t.name || `Masa ${t.no}`).toLocaleUpperCase('tr-TR')
-      return { no: t.no, name: t.name, svg: brandQr(raw, bizName, label, brandColor) }
+      const svg = await brandedTableQR(bizId, t.no, bizName)
+      return { no: t.no, name: t.name, svg }
     })
   )
 
@@ -123,7 +80,6 @@ async function printAllQRs(tables, bizId, profile) {
 </body>
 </html>`
 
-  const win = window.open('', '_blank')
   win.document.write(html)
   win.document.close()
 }
@@ -136,6 +92,7 @@ export default function TableMap() {
   const profile = useProfile(bizId)
   const { staffId: cashierId } = useActiveStaff(bizId)
   const [generating, setGenerating] = useState(false)
+  const [qrError, setQrError] = useState('')
   useTicker(1000)
 
   const [selected, setSelected] = useState(null) // tableId
@@ -193,10 +150,10 @@ export default function TableMap() {
     setSelected(null)
   }
 
-  function closeTable(t, method) {
+  async function closeTable(t, method) {
     // Hesabı kapat: tüm aktif siparişler seçilen yöntemle ödendi →
     // masa boşalır, ciroya yazılır, raporda yönteme göre ayrışır.
-    t.active.forEach((o) => markOrderPaid(bizId, o.id, method, { order: o, cashierId }))
+    await Promise.all(t.active.map((o) => markOrderPaid(bizId, o.id, method, { order: o, cashierId })))
     if (t.mergedInto || layout[t.id]) unmergeTable(bizId, t.id)
     setSelected(null)
   }
@@ -245,9 +202,14 @@ export default function TableMap() {
             <span className="text-sm text-ink-400">{tables.length} masa</span>
             <button
               onClick={async () => {
+                setQrError('')
+                const win = window.open('', '_blank')
+                if (!win) { setQrError('Yazdırmak için açılır pencereye izin verin.'); return }
+                win.opener = null
                 setGenerating(true)
-                await printAllQRs(tables, bizId, profile)
-                setGenerating(false)
+                try { await printAllQRs(tables, bizId, profile, win) }
+                catch { win.close(); setQrError('QR üretilemedi. Tekrar deneyin.') }
+                finally { setGenerating(false) }
               }}
               disabled={generating || tables.length === 0}
               className="btn-outline !py-2"
@@ -262,6 +224,8 @@ export default function TableMap() {
         )}
       </div>
 
+      {qrError && <p role="alert" className="text-red-700 mb-4">{qrError}</p>}
+      <NfcSetup bizId={bizId} tables={tables} profile={profile} />
       {/* Masa kartları */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
         {tables.map((t) => {
@@ -365,8 +329,8 @@ export default function TableMap() {
         onClose={() => setPayFor(null)}
         total={payFor?.total}
         subtitle={payFor ? `${payFor.name} · tahsilat` : ''}
-        onSelect={(method) => {
-          if (payFor) closeTable(payFor, method)
+        onSelect={async (method) => {
+          if (payFor) await closeTable(payFor, method)
           setPayFor(null)
         }}
       />

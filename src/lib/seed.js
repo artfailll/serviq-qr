@@ -6,7 +6,7 @@
 // Her kategorinin kendine özel "hızlı not" şablonu vardır (notes):
 // içeceğe "az pişmiş" değil "buzsuz/şekersiz" gibi anlamlı seçenekler çıkar.
 
-import { subscribe, setValue } from './db'
+import { IS_DEMO, readValue, setValue } from './db'
 
 // Başlangıçta görsel yok — sahip kendi fotoğrafını ekleyene kadar kartlar
 // şablonun renk/tipografi düzeniyle (fotoğrafsız) gösterilir.
@@ -272,62 +272,14 @@ export function buildSeedData() {
   return { categories, products, tables, profile: DEFAULT_PROFILE, seededAt: Date.now() }
 }
 
-// Tek seferlik okuma — subscribe'ı ilk değerden sonra hemen kapatır.
-function readOnce(path) {
-  return new Promise((resolve) => {
-    let unsub = null
-    unsub = subscribe(path, (val) => {
-      if (unsub) unsub()
-      resolve(val)
-    })
-  })
-}
-
-// Belirli bir işletme için DB'de menü yoksa bir kez tohumla.
-//
-// ÖNEMLİ: Kurulum scripti (yeni-musteri.cjs) işletmenin profilini
-// (isim, renk) ve masalarını önceden yazar. Bu yüzden tohumlama
-// ASLA tüm /menu düğümünü ezmez — yalnızca:
-//   • kategori + ürünleri (daha önce tohumlanmadıysa) yazar,
-//   • profil/masaları SADECE hiç yoksa varsayılanla doldurur.
-// Böylece müşterinin özel adı/rengi/masa sayısı korunur.
-// Tanımlı bir işletme mi? Kurulum betiği (yeni-musteri.cjs) her yeni müşteri
-// için önce menu/profile yazar — yani profil varsa işletme gerçekten açılmış
-// demektir.
-//
-// Bu kontrol olmadan, URL'deki ?isletme= değeri ne olursa olsun sıfırdan bir
-// "Lezzet Kafe" oluşuyordu. Sonuçları: QR'daki kimlikte tek harf hata → müşteri
-// sahte menü ve sahte fiyat görüp sipariş veriyor, sipariş hiçbir kasaya
-// düşmüyor; ayrıca URL'i değiştiren herkes veritabanında sınırsız çöp işletme
-// açabiliyordu.
+// Production reads never create or reset a customer's menu. Provisioning is
+// explicit; only the local demo is allowed to generate sample data.
 export async function ensureSeeded(bizId) {
   const base = `businesses/${bizId}/menu`
-  const data = buildSeedData()
-
-  const profile = await readOnce(`${base}/profile`)
-  const seededAt = await readOnce(`${base}/seededAt`)
-
-  // Ne profil ne de tohum izi var → böyle bir işletme açılmamış
-  if (!profile && !seededAt) return false
-
-  // 1) Menü içeriği: yalnızca daha önce tohumlanmadıysa
-  if (!seededAt) {
-    setValue(`${base}/categories`, data.categories)
-    setValue(`${base}/products`, data.products)
-    setValue(`${base}/seededAt`, data.seededAt)
-  }
-
-  // 2) Profil: yalnızca hiç yoksa varsayılanı yaz (özel ayarı ezme!)
-  if (!profile || !profile.name) {
-    setValue(`${base}/profile`, data.profile)
-  }
-
-  // 3) Masalar: yalnızca hiç yoksa varsayılanı yaz
-  const tables = await readOnce(`${base}/tables`)
-  if (!tables || Object.keys(tables).length === 0) {
-    setValue(`${base}/tables`, data.tables)
-  }
-
+  const profile = await readValue(`${base}/profile`)
+  if (profile?.name) return true
+  if (!IS_DEMO || bizId !== 'demo') return false
+  await setValue(base, buildSeedData())
   return true
 }
 

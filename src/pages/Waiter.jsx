@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   UtensilsCrossed, Search, Plus, Minus, X, Send, ArrowLeft,
@@ -42,6 +42,15 @@ function WaiterPOS({ bizId }) {
   const [activeCat, setActiveCat] = useState(null)
   const [cartOpen, setCartOpen] = useState(false)
   const [sent, setSent] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
+  const sendingRef = useRef(false)
+  useEffect(() => {
+    if (!sending) return
+    const warn = e => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [sending])
 
   const grouped = useMemo(() => {
     const g = {}
@@ -61,6 +70,7 @@ function WaiterPOS({ bizId }) {
   const qtyOf = (id) => cart.filter((i) => i.productId === id).reduce((s, i) => s + i.qty, 0)
 
   function add(p) {
+    if (sendingRef.current) return
     setCart((prev) => {
       const idx = prev.findIndex((i) => i.productId === p.id && !i.note)
       if (idx >= 0) { const c = [...prev]; c[idx] = { ...c[idx], qty: c[idx].qty + 1 }; return c }
@@ -68,21 +78,29 @@ function WaiterPOS({ bizId }) {
     })
   }
   function changeQty(i, d) {
+    if (sendingRef.current) return
     setCart((prev) => { const c = [...prev]; const n = c[i].qty + d; if (n <= 0) c.splice(i, 1); else c[i] = { ...c[i], qty: n }; return c })
   }
   function setNote(i, note) {
+    if (sendingRef.current) return
     setCart((prev) => { const c = [...prev]; c[i] = { ...c[i], note }; return c })
   }
 
-  function send() {
-    if (!cart.length || !table) return
-    createOrder(bizId, {
+  async function send() {
+    if (sendingRef.current || !cart.length || !table) return
+    sendingRef.current = true
+    setSending(true)
+    setSendError('')
+    try {
+    await createOrder(bizId, {
       tableId: table.id, tableNo: table.no,
       items: cart.map((i) => ({ productId: i.productId, name: i.name, price: i.price, qty: i.qty, note: i.note || '' })),
       staffId,
     })
     setCart([]); setCartOpen(false); setSent(true)
     setTimeout(() => setSent(false), 1800)
+    } catch (error) { setSendError(error.message || 'Sipariş kaydedilemedi. Sepet korunuyor.') }
+    finally { sendingRef.current = false; setSending(false) }
   }
 
   // ── Masa seçimi ──
@@ -116,7 +134,7 @@ function WaiterPOS({ bizId }) {
         profile={profile}
         bizId={bizId}
         title={`Masa ${table.no}`}
-        left={<button onClick={() => { setTable(null); setQuery('') }} className="btn-ghost !py-1.5 !px-2.5"><ArrowLeft className="h-4 w-4" /></button>}
+        left={<button disabled={sending} onClick={() => { setTable(null); setQuery('') }} className="btn-ghost !py-1.5 !px-2.5"><ArrowLeft className="h-4 w-4" /></button>}
       />
 
       {/* Arama */}
@@ -166,8 +184,8 @@ function WaiterPOS({ bizId }) {
       )}
 
       {cartOpen && (
-        <CartSheet cart={cart} total={total} tableNo={table.no}
-          onClose={() => setCartOpen(false)} changeQty={changeQty} setNote={setNote} send={send} />
+        <CartSheet cart={cart} total={total} tableNo={table.no} sending={sending} sendError={sendError}
+          onClose={() => { if (!sendingRef.current) setCartOpen(false) }} changeQty={changeQty} setNote={setNote} send={send} />
       )}
       {sent && <Toast text="Sipariş mutfağa gönderildi!" />}
     </div>
@@ -196,7 +214,7 @@ function ProductList({ items, qtyOf, add }) {
   )
 }
 
-function CartSheet({ cart, total, tableNo, onClose, changeQty, setNote, send }) {
+function CartSheet({ cart, total, tableNo, onClose, changeQty, setNote, send, sending, sendError }) {
   const [noteFor, setNoteFor] = useState(-1)
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -237,8 +255,10 @@ function CartSheet({ cart, total, tableNo, onClose, changeQty, setNote, send }) 
             <span className="text-ink-500 font-semibold">Toplam</span>
             <span className="font-display text-xl font-extrabold">{money(total)}</span>
           </div>
-          <button onClick={send} className="btn-primary w-full !py-3.5 text-base">
-            <Send className="h-5 w-5" /> Mutfağa Gönder
+          {sendError && <p role="alert" className="text-red-700 mb-3">{sendError}</p>}
+          {sending && <p role="status" className="mb-3">Sunucu onayı bekleniyor. Sayfayı kapatmayın.</p>}
+          <button onClick={send} disabled={sending || !cart.length} className="btn-primary w-full !py-3.5 text-base">
+            <Send className="h-5 w-5" /> {sending ? 'Gönderiliyor…' : 'Mutfağa Gönder'}
           </button>
         </div>
       </div>
@@ -262,7 +282,7 @@ function Header({ profile, title, left, right, bizId }) {
         <div className="ml-auto flex items-center gap-2">
           {right}
           {bizId && <StaffPicker bizId={bizId} compact />}
-          <Link to="/kasa" className="btn-outline !py-2 hidden sm:inline-flex">Kasa</Link>
+          <Link to={`/kasa?isletme=${encodeURIComponent(bizId)}`} className="btn-outline !py-2 hidden sm:inline-flex">Kasa</Link>
         </div>
       </div>
     </header>
