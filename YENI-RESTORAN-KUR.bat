@@ -35,8 +35,32 @@ if not exist "%REPO_DIR%\.git" (
   )
 ) else (
   echo Depo zaten mevcut: "%REPO_DIR%"
-  echo Guvenlik icin mevcut dosyalar otomatik guncellenmedi.
-  echo Guncellemek isterseniz bu klasorde git pull --ff-only origin main calistirin.
+  git -C "%REPO_DIR%" status --porcelain >nul
+  for /f "delims=" %%S in ('git -C "%REPO_DIR%" status --porcelain') do (
+    echo HATA: Proje klasorunde yerel degisiklikler var. Otomatik guncelleme guvenli degil.
+    echo Degisiklikleri yedekleyip temizledikten sonra tekrar calistirin.
+    pause
+    exit /b 1
+  )
+  echo Guncel kurulum dalina geciliyor...
+  git -C "%REPO_DIR%" fetch origin feature/windows-restaurant-setup-bat
+  if errorlevel 1 (
+    echo HATA: GitHub'dan guncelleme alinamadi.
+    pause
+    exit /b 1
+  )
+  git -C "%REPO_DIR%" checkout feature/windows-restaurant-setup-bat
+  if errorlevel 1 (
+    echo HATA: Kurulum dalina gecilemedi.
+    pause
+    exit /b 1
+  )
+  git -C "%REPO_DIR%" pull --ff-only origin feature/windows-restaurant-setup-bat
+  if errorlevel 1 (
+    echo HATA: Kurulum dosyalari guncellenemedi.
+    pause
+    exit /b 1
+  )
 )
 set "SCRIPT_DIR=%REPO_DIR%\"
 
