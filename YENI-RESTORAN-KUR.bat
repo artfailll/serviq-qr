@@ -80,20 +80,59 @@ if errorlevel 1 (
 )
 
 if not exist ".env" (
-  if exist ".env.example" (
-    copy ".env.example" ".env" >nul
-    echo.
-    echo Ilk kurulum: .env dosyasi olusturuldu.
-    echo Firebase ayarlarinizi bu dosyaya girmeniz gerekiyor.
-    notepad ".env"
-    echo Dosyayi kaydedip kapatin, sonra BAT dosyasini yeniden calistirin.
-    pause
-    exit /b 0
-  ) else (
-    echo HATA: .env ve .env.example bulunamadi.
+  if not exist ".env.example" (
+    echo HATA: .env.example bulunamadi.
     pause
     exit /b 1
   )
+  echo.
+  echo Ilk kurulum - Firebase ayarlari terminalden girilecek.
+  echo Firebase Console ^> Proje Ayarlari ^> Web uygulamasi bolumunden alabilirsin.
+  echo.
+  set "FB_API_KEY="
+  set /p "FB_API_KEY=Firebase API key: "
+  set "FB_DATABASE_URL="
+  set /p "FB_DATABASE_URL=Firebase Realtime Database URL (https://...): "
+  set "FB_PROJECT_ID="
+  set /p "FB_PROJECT_ID=Firebase Project ID: "
+  if not defined FB_API_KEY (
+    echo HATA: Firebase API key bos olamaz.
+    pause
+    exit /b 1
+  )
+  if not defined FB_DATABASE_URL (
+    echo HATA: Firebase Database URL bos olamaz.
+    pause
+    exit /b 1
+  )
+  if not defined FB_PROJECT_ID (
+    echo HATA: Firebase Project ID bos olamaz.
+    pause
+    exit /b 1
+  )
+  echo %FB_DATABASE_URL%| findstr /b /i "https://" >nul
+  if errorlevel 1 (
+    echo HATA: Database URL https:// ile baslamali.
+    pause
+    exit /b 1
+  )
+  > ".env" echo VITE_FIREBASE_API_KEY=%FB_API_KEY%
+  >> ".env" echo VITE_FIREBASE_DATABASE_URL=%FB_DATABASE_URL%
+  >> ".env" echo VITE_FIREBASE_PROJECT_ID=%FB_PROJECT_ID%
+  set "FB_AUTH_DOMAIN="
+  set /p "FB_AUTH_DOMAIN=Firebase Auth Domain (opsiyonel, Enter gec): "
+  set "FB_STORAGE_BUCKET="
+  set /p "FB_STORAGE_BUCKET=Firebase Storage Bucket (opsiyonel, Enter gec): "
+  set "FB_SENDER_ID="
+  set /p "FB_SENDER_ID=Firebase Messaging Sender ID (opsiyonel, Enter gec): "
+  set "FB_APP_ID="
+  set /p "FB_APP_ID=Firebase App ID (opsiyonel, Enter gec): "
+  if defined FB_AUTH_DOMAIN >> ".env" echo VITE_FIREBASE_AUTH_DOMAIN=%FB_AUTH_DOMAIN%
+  if defined FB_STORAGE_BUCKET >> ".env" echo VITE_FIREBASE_STORAGE_BUCKET=%FB_STORAGE_BUCKET%
+  if defined FB_SENDER_ID >> ".env" echo VITE_FIREBASE_MESSAGING_SENDER_ID=%FB_SENDER_ID%
+  if defined FB_APP_ID >> ".env" echo VITE_FIREBASE_APP_ID=%FB_APP_ID%
+  echo.
+  echo Firebase ayarlari kaydedildi.
 )
 
 if not exist "node_modules" (
