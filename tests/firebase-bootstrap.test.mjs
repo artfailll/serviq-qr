@@ -31,8 +31,8 @@ test('only follows JavaScript assets hosted on the live Serviq origin over HTTPS
 
 test('writes all Firebase values to a local dotenv file without printing them', () => {
   const output = renderEnv({ apiKey: 'public-key', databaseURL: 'https://serviq-default-rtdb.europe-west1.firebasedatabase.app', projectId: 'serviq' })
-  assert.match(output, /^VITE_FIREBASE_API_KEY="public-key"$/m)
-  assert.match(output, /^VITE_FIREBASE_DATABASE_URL="https:\/\/serviq-default-rtdb\.europe-west1\.firebasedatabase\.app"$/m)
-  assert.match(output, /^VITE_FIREBASE_PROJECT_ID="serviq"$/m)
-  assert.match(output, /^VITE_FIREBASE_AUTH_DOMAIN=""$/m)
+  assert.match(output, /^VITE_FIREBASE_API_KEY=public-key$/m)
+  assert.match(output, /^VITE_FIREBASE_DATABASE_URL=https:\/\/serviq-default-rtdb\.europe-west1\.firebasedatabase\.app$/m)
+  assert.match(output, /^VITE_FIREBASE_PROJECT_ID=serviq$/m)
+  assert.match(output, /^VITE_FIREBASE_AUTH_DOMAIN=$/m)
 })
