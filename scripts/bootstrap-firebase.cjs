@@ -10,7 +10,7 @@ const MAX_ASSETS = 60
 
 function valueFor(source, key) {
   const escaped = key.replace(/[.*+?^$()|[\]\\]/g, '\\$&')
-  const match = source.match(new RegExp('(?:["\\']' + escaped + '["\\']|' + escaped + ')\\s*:\\s*["\\']([^"\\']+)["\\']'))
+  const match = source.match(new RegExp(key + '\\s*:\\s*[\\x22\\x27]([^\\x22\\x27]+)[\\x22\\x27]'))
   return match?.[1] || ''
 }
 
