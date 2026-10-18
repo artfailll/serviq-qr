@@ -62,13 +62,18 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-git -C "%REPO_DIR%" fetch origin "%INSTALL_BRANCH%"
+git -C "%REPO_DIR%" fetch origin "refs/heads/%INSTALL_BRANCH%:refs/remotes/origin/%INSTALL_BRANCH%"
 if errorlevel 1 (
   echo HATA: GitHub'dan guncelleme alinamadi.
   pause
   exit /b 1
 )
-git -C "%REPO_DIR%" checkout "%INSTALL_BRANCH%"
+git -C "%REPO_DIR%" show-ref --verify --quiet "refs/heads/%INSTALL_BRANCH%"
+if errorlevel 1 (
+  git -C "%REPO_DIR%" checkout -b "%INSTALL_BRANCH%" --track "origin/%INSTALL_BRANCH%"
+) else (
+  git -C "%REPO_DIR%" checkout "%INSTALL_BRANCH%"
+)
 if errorlevel 1 (
   echo HATA: "%INSTALL_BRANCH%" dalina gecilemedi.
   pause
