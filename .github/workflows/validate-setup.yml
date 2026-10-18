@@ -9,7 +9,7 @@ on:
       - main
 
 concurrency:
-  group: validate-serviq-${{ github.event.pull_request.number || github.ref }}
+  group: validate-serviq
   cancel-in-progress: true
 
 jobs:
