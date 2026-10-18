@@ -50,7 +50,7 @@ jobs:
           git -C $repo config user.name 'Serviq CI'
           git -C $repo config user.email 'serviq-ci@example.invalid'
           Set-Content -Path (Join-Path $repo '.gitignore') -Value @('.env','node_modules/','kurulum-paketleri/')
-          Set-Content -Path (Join-Path $repo '.env') -Value 'VITE_FIREBASE_API_KEY=test'
+          Set-Content -Path (Join-Path $repo '.env') -Value @('VITE_FIREBASE_API_KEY=test','VITE_FIREBASE_DATABASE_URL=https://test-default-rtdb.firebaseio.com','VITE_FIREBASE_PROJECT_ID=test')
           Set-Content -Path (Join-Path $repo 'yeni-musteri.cjs') -Value '// smoke test placeholder'
           Set-Content -Path (Join-Path $repo 'scripts/provision.cjs') -Value '// smoke test placeholder'
           git -C $repo add .gitignore yeni-musteri.cjs scripts/provision.cjs
