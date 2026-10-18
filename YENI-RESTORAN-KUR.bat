@@ -119,7 +119,15 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if exist ".env" goto env_ready
+if not exist ".env" goto configure_env
+findstr /r /c:"^VITE_FIREBASE_API_KEY=." ".env" >nul
+if errorlevel 1 goto configure_env
+findstr /r /c:"^VITE_FIREBASE_DATABASE_URL=https://." ".env" >nul
+if errorlevel 1 goto configure_env
+findstr /r /c:"^VITE_FIREBASE_PROJECT_ID=." ".env" >nul
+if errorlevel 1 goto configure_env
+goto env_ready
+
 if not exist ".env.example" goto env_template_missing
 
 :configure_env
@@ -179,16 +187,19 @@ pause
 exit /b 1
 
 :env_ready
-if not exist "node_modules" (
-  echo Gerekli paketler kuruluyor...
-  call npm install
-  if errorlevel 1 (
-    echo HATA: npm install basarisiz oldu.
-    pause
-    exit /b 1
-  )
+if exist "node_modules" (
+  call npm ls --depth=0 >nul 2>nul
+  if not errorlevel 1 goto deps_ready
+)
+echo Gerekli paketler kuruluyor...
+call npm install
+if errorlevel 1 (
+  echo HATA: npm install basarisiz oldu.
+  pause
+  exit /b 1
 )
 
+:deps_ready
 echo.
 set "BIZ_NAME="
 set /p "BIZ_NAME=Restoran adi: "
