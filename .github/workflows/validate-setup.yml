@@ -1,0 +1,74 @@
+name: Validate Serviq setup
+
+on:
+  push:
+    branches:
+      - feature/windows-restaurant-setup-bat
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  app-tests-and-build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build production bundle with non-secret test configuration
+        run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: test-api-key
+          VITE_FIREBASE_DATABASE_URL: https://serviq-ci-default-rtdb.europe-west1.firebasedatabase.app
+          VITE_FIREBASE_PROJECT_ID: serviq-ci
+
+      - name: Smoke-test terminal BAT flow with mocked Git and Node commands
+        shell: pwsh
+        run: |
+          $testHome = Join-Path $env:RUNNER_TEMP 'serviq-installer-home'
+          $repo = Join-Path $testHome 'Serviq/serviq-qr'
+          $fakeBin = Join-Path $env:RUNNER_TEMP 'serviq-installer-bin'
+          New-Item -ItemType Directory -Force -Path (Join-Path $repo '.git'), (Join-Path $repo 'node_modules'), (Join-Path $repo 'scripts'), $fakeBin | Out-Null
+          Set-Content -Path (Join-Path $repo '.env') -Value 'VITE_FIREBASE_API_KEY=test'
+          Set-Content -Path (Join-Path $repo 'yeni-musteri.cjs') -Value '// smoke test placeholder'
+          Set-Content -Path (Join-Path $repo 'scripts/provision.cjs') -Value '// smoke test placeholder'
+          Set-Content -Path (Join-Path $fakeBin 'git.cmd') -Value '@echo off`r`nexit /b 0'
+          Set-Content -Path (Join-Path $fakeBin 'node.cmd') -Value '@echo off`r
+exit /b 0'
+          $env:USERPROFILE = $testHome
+          $env:PATH = "$fakeBin;$env:PATH"
+          $inputFile = Join-Path $env:RUNNER_TEMP 'serviq-installer-input.txt'
+          $outputFile = Join-Path $env:RUNNER_TEMP 'serviq-installer-output.txt'
+          $errorFile = Join-Path $env:RUNNER_TEMP 'serviq-installer-error.txt'
+          Set-Content -NoNewline -Path $inputFile -Value "Test Restoran`r
+test-restoran`r
+10`r
+#f97316`r
+12345678`r
+x`r`n"
+          $bat = Join-Path $env:GITHUB_WORKSPACE 'YENI-RESTORAN-KUR.bat'
+          $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d','/c',"`"$bat`"") -PassThru -Wait -RedirectStandardInput $inputFile -RedirectStandardOutput $outputFile -RedirectStandardError $errorFile
+          $output = Get-Content $outputFile -Raw
+          if ($proc.ExitCode -ne 0) {
+            Write-Host $output
+            if (Test-Path $errorFile) { Write-Host (Get-Content $errorFile -Raw) }
+            throw "BAT smoke test failed with exit code $($proc.ExitCode)"
+          }
+          if ($output -notmatch 'Kurulum dosyalari hazir') {
+            Write-Host $output
+            throw 'BAT did not reach the expected successful terminal path'
+          }
+          Write-Host 'BAT terminal flow reached successful completion using mocked Git/Node commands.'
