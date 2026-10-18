@@ -43,7 +43,7 @@ function jsReferences(text, baseUrl) {
   while ((match = pattern.exec(text))) {
     try {
       const url = new URL(match[1], baseUrl)
-      if (url.protocol === 'https:' && url.origin === new URL(SITE_URL).origin && url.pathname.endsWith('.js')) {
+      if (url.protocol === 'https:' && ['serviq.com.tr', 'www.serviq.com.tr'].includes(url.hostname) && url.pathname.endsWith('.js')) {
         urls.add(url.href)
       }
     } catch {}
