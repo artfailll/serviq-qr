@@ -66,7 +66,8 @@ jobs:
           $errorFile = Join-Path $env:RUNNER_TEMP 'serviq-installer-error.txt'
           [System.IO.File]::WriteAllText($inputFile, (@('test-api-key','https://test-default-rtdb.firebaseio.com','test-project','','','','','Test Restoran','test-restoran','10','#f97316','12345678','x') -join [Environment]::NewLine) + [Environment]::NewLine)
           $bat = Join-Path $env:GITHUB_WORKSPACE 'YENI-RESTORAN-KUR.bat'
-          $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d','/c',"`"$bat`"") -PassThru -Wait -RedirectStandardInput $inputFile -RedirectStandardOutput $outputFile -RedirectStandardError $errorFile
+          $command = "call `"$bat`" < `"$inputFile`""
+          $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d','/c',$command) -PassThru -Wait -RedirectStandardOutput $outputFile -RedirectStandardError $errorFile
           $output = Get-Content $outputFile -Raw
           if ($proc.ExitCode -ne 0) {
             Write-Host $output
