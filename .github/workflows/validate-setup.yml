@@ -38,20 +38,26 @@ jobs:
           VITE_FIREBASE_DATABASE_URL: https://serviq-ci-default-rtdb.europe-west1.firebasedatabase.app
           VITE_FIREBASE_PROJECT_ID: serviq-ci
 
-      - name: Smoke-test terminal BAT flow with mocked Git and Node commands
+      - name: Smoke-test terminal BAT flow with an isolated local Git repository
         shell: pwsh
         run: |
           $testHome = Join-Path $env:RUNNER_TEMP 'serviq-installer-home'
           $repo = Join-Path $testHome 'Serviq/serviq-qr'
-          $fakeBin = Join-Path $env:RUNNER_TEMP 'serviq-installer-bin'
-          New-Item -ItemType Directory -Force -Path (Join-Path $repo '.git'), (Join-Path $repo 'node_modules'), (Join-Path $repo 'scripts'), $fakeBin | Out-Null
+          $bare = Join-Path $env:RUNNER_TEMP 'serviq-installer-origin.git'
+          New-Item -ItemType Directory -Force -Path $repo, (Join-Path $repo 'node_modules'), (Join-Path $repo 'scripts') | Out-Null
+          git init --bare --initial-branch=main $bare
+          git init --initial-branch=main $repo
+          git -C $repo config user.name 'Serviq CI'
+          git -C $repo config user.email 'serviq-ci@example.invalid'
+          Set-Content -Path (Join-Path $repo '.gitignore') -Value @('.env','node_modules/','kurulum-paketleri/')
           Set-Content -Path (Join-Path $repo '.env') -Value 'VITE_FIREBASE_API_KEY=test'
           Set-Content -Path (Join-Path $repo 'yeni-musteri.cjs') -Value '// smoke test placeholder'
           Set-Content -Path (Join-Path $repo 'scripts/provision.cjs') -Value '// smoke test placeholder'
-          Set-Content -Path (Join-Path $fakeBin 'git.cmd') -Value @('@echo off', 'exit /b 0')
-          Set-Content -Path (Join-Path $fakeBin 'node.cmd') -Value @('@echo off', 'exit /b 0')
+          git -C $repo add .gitignore yeni-musteri.cjs scripts/provision.cjs
+          git -C $repo commit -m 'Create isolated installer smoke-test fixture'
+          git -C $repo remote add origin $bare
+          git -C $repo push -u origin main
           $env:USERPROFILE = $testHome
-          $env:PATH = "$fakeBin;$env:PATH"
           $inputFile = Join-Path $env:RUNNER_TEMP 'serviq-installer-input.txt'
           $outputFile = Join-Path $env:RUNNER_TEMP 'serviq-installer-output.txt'
           $errorFile = Join-Path $env:RUNNER_TEMP 'serviq-installer-error.txt'
@@ -68,4 +74,4 @@ jobs:
             Write-Host $output
             throw 'BAT did not reach the expected successful terminal path'
           }
-          Write-Host 'BAT terminal flow reached successful completion using mocked Git/Node commands.'
+          Write-Host 'BAT terminal flow reached successful completion with a local Git fixture.'
