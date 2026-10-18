@@ -119,6 +119,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
+if not exist ".env.example" goto env_template_missing
 if not exist ".env" goto configure_env
 findstr /r /c:"^VITE_FIREBASE_API_KEY=." ".env" >nul
 if errorlevel 1 goto configure_env
@@ -127,8 +128,6 @@ if errorlevel 1 goto configure_env
 findstr /r /c:"^VITE_FIREBASE_PROJECT_ID=." ".env" >nul
 if errorlevel 1 goto configure_env
 goto env_ready
-
-if not exist ".env.example" goto env_template_missing
 
 :configure_env
 echo.
