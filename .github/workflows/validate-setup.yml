@@ -45,20 +45,14 @@ jobs:
           Set-Content -Path (Join-Path $repo '.env') -Value 'VITE_FIREBASE_API_KEY=test'
           Set-Content -Path (Join-Path $repo 'yeni-musteri.cjs') -Value '// smoke test placeholder'
           Set-Content -Path (Join-Path $repo 'scripts/provision.cjs') -Value '// smoke test placeholder'
-          Set-Content -Path (Join-Path $fakeBin 'git.cmd') -Value '@echo off`r`nexit /b 0'
-          Set-Content -Path (Join-Path $fakeBin 'node.cmd') -Value '@echo off`r
-exit /b 0'
+          Set-Content -Path (Join-Path $fakeBin 'git.cmd') -Value @('@echo off', 'exit /b 0')
+          Set-Content -Path (Join-Path $fakeBin 'node.cmd') -Value @('@echo off', 'exit /b 0')
           $env:USERPROFILE = $testHome
           $env:PATH = "$fakeBin;$env:PATH"
           $inputFile = Join-Path $env:RUNNER_TEMP 'serviq-installer-input.txt'
           $outputFile = Join-Path $env:RUNNER_TEMP 'serviq-installer-output.txt'
           $errorFile = Join-Path $env:RUNNER_TEMP 'serviq-installer-error.txt'
-          Set-Content -NoNewline -Path $inputFile -Value "Test Restoran`r
-test-restoran`r
-10`r
-#f97316`r
-12345678`r
-x`r`n"
+          [System.IO.File]::WriteAllText($inputFile, (@('Test Restoran','test-restoran','10','#f97316','12345678','x') -join [Environment]::NewLine) + [Environment]::NewLine)
           $bat = Join-Path $env:GITHUB_WORKSPACE 'YENI-RESTORAN-KUR.bat'
           $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d','/c',"`"$bat`"") -PassThru -Wait -RedirectStandardInput $inputFile -RedirectStandardOutput $outputFile -RedirectStandardError $errorFile
           $output = Get-Content $outputFile -Raw
