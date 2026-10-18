@@ -9,7 +9,6 @@ const SITE_URL = 'https://serviq.com.tr/'
 const MAX_ASSETS = 60
 
 function valueFor(source, key) {
-  const escaped = key.replace(/[.*+?^$()|[\]\\]/g, '\\$&')
   const match = source.match(new RegExp(key + '\\s*:\\s*[\\x22\\x27]([^\\x22\\x27]+)[\\x22\\x27]'))
   return match?.[1] || ''
 }
@@ -73,7 +72,7 @@ function renderEnv(config) {
     VITE_FIREBASE_APP_ID: config.appId,
   }
   return Object.entries(keys)
-    .map(([key, value]) => key + '=' + JSON.stringify(value || ''))
+    .map(([key, value]) => key + '=' + (value || ''))
     .join('\n') + '\n'
 }
 
