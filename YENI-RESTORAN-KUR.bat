@@ -131,53 +131,15 @@ goto env_ready
 
 :configure_env
 echo.
-echo Ilk kurulum - Firebase ayarlari terminalden girilecek.
-echo Firebase Console ^> Proje Ayarlari ^> Web uygulamasi bolumunden alabilirsin.
-echo.
-set "FB_API_KEY="
-set /p "FB_API_KEY=Firebase API key: "
-set "FB_DATABASE_URL="
-set /p "FB_DATABASE_URL=Firebase Realtime Database URL (https://...): "
-set "FB_PROJECT_ID="
-set /p "FB_PROJECT_ID=Firebase Project ID: "
-if not defined FB_API_KEY (
-  echo HATA: Firebase API key bos olamaz.
-  pause
-  exit /b 1
-)
-if not defined FB_DATABASE_URL (
-  echo HATA: Firebase Database URL bos olamaz.
-  pause
-  exit /b 1
-)
-if not defined FB_PROJECT_ID (
-  echo HATA: Firebase Project ID bos olamaz.
-  pause
-  exit /b 1
-)
-echo %FB_DATABASE_URL%| findstr /b /i "https://" >nul
+echo Serviq'in canli Firebase ayarlari otomatik aliniyor...
+call node scripts\bootstrap-firebase.cjs
 if errorlevel 1 (
-  echo HATA: Database URL https:// ile baslamali.
+  echo.
+  echo HATA: Firebase ayarlari otomatik alinamadi.
+  echo Internet baglantisini kontrol edin; kurulum guvenlik icin durduruldu.
   pause
   exit /b 1
 )
-> ".env" echo VITE_FIREBASE_API_KEY=%FB_API_KEY%
->> ".env" echo VITE_FIREBASE_DATABASE_URL=%FB_DATABASE_URL%
->> ".env" echo VITE_FIREBASE_PROJECT_ID=%FB_PROJECT_ID%
-set "FB_AUTH_DOMAIN="
-set /p "FB_AUTH_DOMAIN=Firebase Auth Domain (opsiyonel, Enter gec): "
-set "FB_STORAGE_BUCKET="
-set /p "FB_STORAGE_BUCKET=Firebase Storage Bucket (opsiyonel, Enter gec): "
-set "FB_SENDER_ID="
-set /p "FB_SENDER_ID=Firebase Messaging Sender ID (opsiyonel, Enter gec): "
-set "FB_APP_ID="
-set /p "FB_APP_ID=Firebase App ID (opsiyonel, Enter gec): "
-if defined FB_AUTH_DOMAIN echo VITE_FIREBASE_AUTH_DOMAIN=%FB_AUTH_DOMAIN%>> ".env"
-if defined FB_STORAGE_BUCKET echo VITE_FIREBASE_STORAGE_BUCKET=%FB_STORAGE_BUCKET%>> ".env"
-if defined FB_SENDER_ID echo VITE_FIREBASE_MESSAGING_SENDER_ID=%FB_SENDER_ID%>> ".env"
-if defined FB_APP_ID echo VITE_FIREBASE_APP_ID=%FB_APP_ID%>> ".env"
-echo.
-echo Firebase ayarlari kaydedildi.
 goto env_ready
 
 :env_template_missing
