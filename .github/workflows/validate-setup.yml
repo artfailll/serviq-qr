@@ -53,6 +53,7 @@ jobs:
           git -C $repo config user.email 'serviq-ci@example.invalid'
           Set-Content -Path (Join-Path $repo '.gitignore') -Value @('.env','node_modules/','kurulum-paketleri/')
           Set-Content -Path (Join-Path $repo '.env.example') -Value @('VITE_FIREBASE_API_KEY=','VITE_FIREBASE_DATABASE_URL=','VITE_FIREBASE_PROJECT_ID=')
+          Set-Content -Path (Join-Path $repo '.env') -Value @('VITE_FIREBASE_API_KEY=test','VITE_FIREBASE_DATABASE_URL=https://test-default-rtdb.firebaseio.com','VITE_FIREBASE_PROJECT_ID=test')
           Set-Content -Path (Join-Path $repo 'package.json') -Value '{"name":"serviq-smoke","version":"1.0.0","private":true}'
           Set-Content -Path (Join-Path $repo 'yeni-musteri.cjs') -Value '// smoke test placeholder'
           Set-Content -Path (Join-Path $repo 'scripts/provision.cjs') -Value '// smoke test placeholder'
@@ -61,8 +62,11 @@ jobs:
           git -C $repo remote add origin $bare
           git -C $repo push -u origin main
           $env:USERPROFILE = $testHome
-          $inputLines = @('test-api-key','https://test-default-rtdb.firebaseio.com','test-project','','','','','Test Restoran','test-restoran','10','#f97316','12345678','x')
           $bat = Join-Path $env:GITHUB_WORKSPACE 'YENI-RESTORAN-KUR.bat'
+          $batContent = Get-Content $bat -Raw
+          foreach ($prompt in @('Firebase API key:', 'Firebase Realtime Database URL', 'Firebase Project ID:', 'Restoran adi:', 'Isletme ID', 'Masa sayisi', 'Marka rengi HEX', 'Yonetim PIN')) {
+            if ($batContent -notmatch [regex]::Escape($prompt)) { throw "Missing interactive prompt: $prompt" }
+          }
           $psi = [System.Diagnostics.ProcessStartInfo]::new()
           $psi.FileName = 'cmd.exe'
           $psi.Arguments = "/d /c `"$bat`""
@@ -72,8 +76,14 @@ jobs:
           $psi.RedirectStandardError = $true
           $psi.UseShellExecute = $false
           $psi.CreateNoWindow = $true
+          $psi.EnvironmentVariables['USERPROFILE'] = $testHome
+          $psi.EnvironmentVariables['SERVIQ_BUSINESS_NAME'] = 'Test Restoran'
+          $psi.EnvironmentVariables['SERVIQ_BUSINESS_ID'] = 'test-restoran'
+          $psi.EnvironmentVariables['SERVIQ_TABLE_COUNT'] = '10'
+          $psi.EnvironmentVariables['SERVIQ_BRAND_COLOR'] = '#f97316'
+          $psi.EnvironmentVariables['SERVIQ_SETUP_ADMIN_PIN'] = '12345678'
           $proc = [System.Diagnostics.Process]::Start($psi)
-          foreach ($line in $inputLines) { $proc.StandardInput.WriteLine($line) }
+          $proc.StandardInput.WriteLine('x')
           $proc.StandardInput.Close()
           $output = $proc.StandardOutput.ReadToEnd()
           $errorText = $proc.StandardError.ReadToEnd()
