@@ -64,8 +64,15 @@ jobs:
           $env:USERPROFILE = $testHome
           $bat = Join-Path $env:GITHUB_WORKSPACE 'YENI-RESTORAN-KUR.bat'
           $batContent = Get-Content $bat -Raw
-          foreach ($prompt in @('Firebase API key:', 'Firebase Realtime Database URL', 'Firebase Project ID:', 'Restoran adi:', 'Isletme ID', 'Masa sayisi', 'Marka rengi HEX', 'Yonetim PIN')) {
+          if ($batContent -match 'Firebase API key:|Firebase Realtime Database URL|Firebase Project ID:') {
+            throw 'The Windows launcher must not ask the user to enter Firebase configuration manually.'
+          }
+          if ($batContent -notmatch 'bootstrap-firebase\.cjs') { throw 'The Windows launcher must bootstrap the live Firebase configuration automatically.' }
+          foreach ($prompt in @('Restoran adi:', 'Isletme ID', 'Masa sayisi', 'Marka rengi HEX', 'Yonetim PIN')) {
             if ($batContent -notmatch [regex]::Escape($prompt)) { throw "Missing interactive prompt: $prompt" }
+          }
+          if (-not (Test-Path (Join-Path $env:GITHUB_WORKSPACE 'scripts/bootstrap-firebase.cjs'))) {
+            throw 'Firebase bootstrap script is missing.'
           }
           $psi = [System.Diagnostics.ProcessStartInfo]::new()
           $psi.FileName = 'cmd.exe'
