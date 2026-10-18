@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 REPO_URL="https://github.com/artfailll/serviq-qr.git"
-REPO_BRANCH="feature/windows-restaurant-setup-bat"
+REPO_BRANCH="main"
 INSTALL_ROOT="$HOME/Serviq"
 REPO_DIR="$INSTALL_ROOT/serviq-qr"
 ASKPASS_FILE=""
