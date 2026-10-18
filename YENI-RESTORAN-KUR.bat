@@ -200,34 +200,36 @@ if errorlevel 1 (
 
 :deps_ready
 echo.
-set "BIZ_NAME="
-set /p "BIZ_NAME=Restoran adi: "
+set "BIZ_NAME=%SERVIQ_BUSINESS_NAME%"
+if not defined BIZ_NAME set /p "BIZ_NAME=Restoran adi: "
 if not defined BIZ_NAME (
   echo HATA: Restoran adi bos olamaz.
   pause
   exit /b 1
 )
 
-set "BIZ_ID="
-set /p "BIZ_ID=Isletme ID (or. sezgin-usta): "
+set "BIZ_ID=%SERVIQ_BUSINESS_ID%"
+if not defined BIZ_ID set /p "BIZ_ID=Isletme ID (or. sezgin-usta): "
 if not defined BIZ_ID (
   echo HATA: Isletme ID bos olamaz.
   pause
   exit /b 1
 )
 
-set "TABLE_COUNT=10"
-set /p "TABLE_COUNT=Masa sayisi [10]: "
+set "TABLE_COUNT=%SERVIQ_TABLE_COUNT%"
+if not defined TABLE_COUNT set "TABLE_COUNT=10"
+if not defined SERVIQ_TABLE_COUNT set /p "TABLE_COUNT=Masa sayisi [10]: "
 if not defined TABLE_COUNT set "TABLE_COUNT=10"
 
-set "BRAND_COLOR=#f97316"
-set /p "BRAND_COLOR=Marka rengi HEX [#f97316]: "
+set "BRAND_COLOR=%SERVIQ_BRAND_COLOR%"
+if not defined BRAND_COLOR set "BRAND_COLOR=#f97316"
+if not defined SERVIQ_BRAND_COLOR set /p "BRAND_COLOR=Marka rengi HEX [#f97316]: "
 if not defined BRAND_COLOR set "BRAND_COLOR=#f97316"
 
 echo.
 echo Not: Bu PIN, serviq.com.tr sunucusunda SERVIQ_ADMIN_PINS icinde tanimli PIN ile ayni olmalidir.
-set "SERVIQ_ADMIN_PIN="
-set /p "SERVIQ_ADMIN_PIN=Yonetim PIN'i (en az 8 karakter): "
+set "SERVIQ_ADMIN_PIN=%SERVIQ_SETUP_ADMIN_PIN%"
+if not defined SERVIQ_ADMIN_PIN set /p "SERVIQ_ADMIN_PIN=Yonetim PIN'i (en az 8 karakter): "
 if not defined SERVIQ_ADMIN_PIN (
   echo HATA: PIN bos olamaz.
   pause
