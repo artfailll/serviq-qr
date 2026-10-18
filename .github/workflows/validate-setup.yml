@@ -61,18 +61,26 @@ jobs:
           git -C $repo remote add origin $bare
           git -C $repo push -u origin main
           $env:USERPROFILE = $testHome
-          $inputFile = Join-Path $env:RUNNER_TEMP 'serviq-installer-input.txt'
-          $outputFile = Join-Path $env:RUNNER_TEMP 'serviq-installer-output.txt'
-          $errorFile = Join-Path $env:RUNNER_TEMP 'serviq-installer-error.txt'
-          [System.IO.File]::WriteAllText($inputFile, (@('test-api-key','https://test-default-rtdb.firebaseio.com','test-project','','','','','Test Restoran','test-restoran','10','#f97316','12345678','x') -join [Environment]::NewLine) + [Environment]::NewLine)
+          $inputLines = @('test-api-key','https://test-default-rtdb.firebaseio.com','test-project','','','','','Test Restoran','test-restoran','10','#f97316','12345678','x')
           $bat = Join-Path $env:GITHUB_WORKSPACE 'YENI-RESTORAN-KUR.bat'
-          $runnerFile = Join-Path $env:RUNNER_TEMP 'run-serviq-installer.cmd'
-          Set-Content -Encoding ASCII -Path $runnerFile -Value @('@echo off', "call `"$bat`" < `"$inputFile`"", 'exit /b %ERRORLEVEL%')
-          $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d','/c',"`"$runnerFile`"") -PassThru -Wait -RedirectStandardOutput $outputFile -RedirectStandardError $errorFile
-          $output = Get-Content $outputFile -Raw
+          $psi = [System.Diagnostics.ProcessStartInfo]::new()
+          $psi.FileName = 'cmd.exe'
+          $psi.Arguments = "/d /c `"$bat`""
+          $psi.WorkingDirectory = $env:GITHUB_WORKSPACE
+          $psi.RedirectStandardInput = $true
+          $psi.RedirectStandardOutput = $true
+          $psi.RedirectStandardError = $true
+          $psi.UseShellExecute = $false
+          $psi.CreateNoWindow = $true
+          $proc = [System.Diagnostics.Process]::Start($psi)
+          foreach ($line in $inputLines) { $proc.StandardInput.WriteLine($line) }
+          $proc.StandardInput.Close()
+          $output = $proc.StandardOutput.ReadToEnd()
+          $errorText = $proc.StandardError.ReadToEnd()
+          $proc.WaitForExit()
           if ($proc.ExitCode -ne 0) {
             Write-Host $output
-            if (Test-Path $errorFile) { Write-Host (Get-Content $errorFile -Raw) }
+            if ($errorText) { Write-Host $errorText }
             throw "BAT smoke test failed with exit code $($proc.ExitCode)"
           }
           if ($output -notmatch 'Kurulum dosyalari hazir') {
