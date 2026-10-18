@@ -3,11 +3,14 @@ name: Validate Serviq setup
 on:
   push:
     branches:
-      - feature/windows-restaurant-setup-bat
       - main
   pull_request:
     branches:
       - main
+
+concurrency:
+  group: validate-serviq-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   app-tests-and-build:
