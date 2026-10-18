@@ -4,9 +4,9 @@ chcp 65001 >nul
 title Serviq - Yeni Restoran Kurulumu
 
 set "REPO_URL=https://github.com/artfailll/serviq-qr.git"
+set "INSTALL_BRANCH=main"
 set "INSTALL_ROOT=%USERPROFILE%\Serviq"
 set "REPO_DIR=%INSTALL_ROOT%\serviq-qr"
-set "SCRIPT_DIR=%~dp0"
 
 echo.
 echo ==========================================
@@ -14,9 +14,7 @@ echo       SERVIQ - YENI RESTORAN KURULUMU
 echo ==========================================
 echo.
 
-REM BAT dosyasi tek basina masaustunden calistirilirsa depoyu indir.
-if exist "%SCRIPT_DIR%yeni-musteri.cjs" goto repo_ready
-
+REM Her zaman yonetilen kurulum kopyasini kullan; BAT'in indirildigi klasore guvenme.
 where git >nul 2>nul
 if errorlevel 1 (
   echo HATA: Git bulunamadi. Git for Windows kurun: https://git-scm.com/download/win
@@ -25,49 +23,80 @@ if errorlevel 1 (
 )
 
 if not exist "%INSTALL_ROOT%" mkdir "%INSTALL_ROOT%"
-if not exist "%REPO_DIR%\.git" (
-  echo Serviq GitHub deposu indiriliyor...
-  git clone --branch feature/windows-restaurant-setup-bat "%REPO_URL%" "%REPO_DIR%"
-  if errorlevel 1 (
-    echo HATA: Depo indirilemedi. Ozel depo icin GitHub oturumunuzu kontrol edin.
-    pause
-    exit /b 1
-  )
-) else (
-  echo Depo zaten mevcut: "%REPO_DIR%"
-  git -C "%REPO_DIR%" status --porcelain >nul
-  for /f "delims=" %%S in ('git -C "%REPO_DIR%" status --porcelain') do (
-    echo HATA: Proje klasorunde yerel degisiklikler var. Otomatik guncelleme guvenli degil.
-    echo Degisiklikleri yedekleyip temizledikten sonra tekrar calistirin.
-    pause
-    exit /b 1
-  )
-  echo Guncel kurulum dalina geciliyor...
-  git -C "%REPO_DIR%" fetch origin feature/windows-restaurant-setup-bat
-  if errorlevel 1 (
-    echo HATA: GitHub'dan guncelleme alinamadi.
-    pause
-    exit /b 1
-  )
-  git -C "%REPO_DIR%" checkout feature/windows-restaurant-setup-bat
-  if errorlevel 1 (
-    echo HATA: Kurulum dalina gecilemedi.
-    pause
-    exit /b 1
-  )
-  git -C "%REPO_DIR%" pull --ff-only origin feature/windows-restaurant-setup-bat
-  if errorlevel 1 (
-    echo HATA: Kurulum dosyalari guncellenemedi.
-    pause
-    exit /b 1
-  )
+if errorlevel 1 (
+  echo HATA: Kurulum klasoru olusturulamadi: "%INSTALL_ROOT%"
+  pause
+  exit /b 1
 )
-set "SCRIPT_DIR=%REPO_DIR%\"
+
+if exist "%REPO_DIR%\.git" goto update_repo
+if exist "%REPO_DIR%" (
+  echo HATA: "%REPO_DIR%" klasoru var ancak Git deposu degil.
+  echo Klasoru yeniden adlandirip BAT dosyasini tekrar calistirin.
+  pause
+  exit /b 1
+)
+
+echo Serviq deposu indiriliyor...
+git clone --branch "%INSTALL_BRANCH%" "%REPO_URL%" "%REPO_DIR%"
+if errorlevel 1 (
+  echo HATA: Depo indirilemedi. Ozel depo icin GitHub oturumunuzu kontrol edin.
+  pause
+  exit /b 1
+)
+goto repo_ready
+
+:update_repo
+echo Mevcut Serviq kurulumu kontrol ediliyor...
+git -C "%REPO_DIR%" diff --quiet
+if errorlevel 1 (
+  echo HATA: Proje dosyalarinda kaydedilmemis degisiklikler var.
+  echo Degisiklikleri yedekleyip commit edin veya geri alin; hicbir dosya silinmedi.
+  pause
+  exit /b 1
+)
+git -C "%REPO_DIR%" diff --cached --quiet
+if errorlevel 1 (
+  echo HATA: Git'e eklenmis ama commit edilmemis degisiklikler var.
+  echo Degisiklikleri commit edin veya geri alin; hicbir dosya silinmedi.
+  pause
+  exit /b 1
+)
+git -C "%REPO_DIR%" fetch origin "%INSTALL_BRANCH%"
+if errorlevel 1 (
+  echo HATA: GitHub'dan guncelleme alinamadi.
+  pause
+  exit /b 1
+)
+git -C "%REPO_DIR%" checkout "%INSTALL_BRANCH%"
+if errorlevel 1 (
+  echo HATA: "%INSTALL_BRANCH%" dalina gecilemedi.
+  pause
+  exit /b 1
+)
+git -C "%REPO_DIR%" pull --ff-only origin "%INSTALL_BRANCH%"
+if errorlevel 1 (
+  echo HATA: Kurulum dosyalari guvenli sekilde guncellenemedi.
+  echo Yerel commitler olabilir; elle kontrol edin.
+  pause
+  exit /b 1
+)
 
 :repo_ready
-cd /d "%SCRIPT_DIR%"
+cd /d "%REPO_DIR%"
 if errorlevel 1 (
   echo HATA: Proje klasorune gecilemedi.
+  pause
+  exit /b 1
+)
+
+if not exist "yeni-musteri.cjs" (
+  echo HATA: yeni-musteri.cjs bulunamadi. Depo eksik olabilir.
+  pause
+  exit /b 1
+)
+if not exist "scripts\provision.cjs" (
+  echo HATA: scripts\provision.cjs bulunamadi. Depo eksik olabilir.
   pause
   exit /b 1
 )
@@ -75,6 +104,12 @@ if errorlevel 1 (
 where node >nul 2>nul
 if errorlevel 1 (
   echo HATA: Node.js bulunamadi. LTS surumunu kurun: https://nodejs.org/
+  pause
+  exit /b 1
+)
+where npm >nul 2>nul
+if errorlevel 1 (
+  echo HATA: npm bulunamadi. Node.js LTS kurulumunu onarip tekrar deneyin.
   pause
   exit /b 1
 )
@@ -139,7 +174,6 @@ pause
 exit /b 1
 
 :env_ready
-
 if not exist "node_modules" (
   echo Gerekli paketler kuruluyor...
   call npm install
