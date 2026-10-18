@@ -39,7 +39,7 @@ async function main(args = process.argv.slice(2)) {
     if (await current.json() !== null) throw new Error('İşletme zaten var. Veri/şifre değiştirilmedi. QR için --only-qr kullanın.')
     const etag = current.headers.get('etag')
     if (!etag) throw new Error('Güvenli kurulum için ETag alınamadı.')
-    if (!o.password || o.password.length < 8) throw new Error('Önce SERVIQ_ADMIN_PINS içine en az 8 karakterli şifre tanımlayın; aynı şifreyi 5. argüman olarak verin.')
+    if (!o.password || o.password.length < 8) throw new Error('Önce SERVIQ_ADMIN_PINS içine en az 8 karakterli PIN tanımlayın; kurulumda aynı PIN’i girin.')
     const verified = await (await request('https://serviq.com.tr/.netlify/functions/verify-admin', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bizId: o.id, pin: o.password }),
     })).json()
