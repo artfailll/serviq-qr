@@ -7,7 +7,9 @@ require('dotenv').config({ path: process.env.SERVIQ_ENV_FILE || path.join(ROOT, 
 
 function parseArgs(args) {
   const onlyQR = args[0] === '--only-qr'
-  const [name, id, count = '10', color = '#f97316', password] = onlyQR ? ['', args[1]] : args
+  const [name, id, count = '10', color = '#f97316', passwordArg] = onlyQR ? ['', args[1]] : args
+  // BAT launcher passes the PIN through the environment, not the command line.
+  const password = passwordArg || process.env.SERVIQ_ADMIN_PIN
   if (!id || id.length > 100 || /[.#$\[\]\/\u0000-\u001f\u007f]/u.test(id)) throw new Error('Geçersiz işletme ID.')
   if (!onlyQR && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) throw new Error('Yeni işletme ID: küçük harf, rakam ve tire kullanın.')
   if (!onlyQR && (!name?.trim() || name.length > 100)) throw new Error('İşletme adı 1–100 karakter olmalı.')
@@ -37,7 +39,7 @@ async function main(args = process.argv.slice(2)) {
     if (await current.json() !== null) throw new Error('İşletme zaten var. Veri/şifre değiştirilmedi. QR için --only-qr kullanın.')
     const etag = current.headers.get('etag')
     if (!etag) throw new Error('Güvenli kurulum için ETag alınamadı.')
-    if (!o.password || o.password.length < 8) throw new Error('Önce SERVIQ_ADMIN_PINS içine en az 8 karakterli şifre tanımlayın; aynı şifreyi 5. argüman olarak verin.')
+    if (!o.password || o.password.length < 8) throw new Error('Önce SERVIQ_ADMIN_PINS içine en az 8 karakterli PIN tanımlayın; kurulumda aynı PIN’i girin.')
     const verified = await (await request('https://serviq.com.tr/.netlify/functions/verify-admin', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bizId: o.id, pin: o.password }),
     })).json()

@@ -114,6 +114,17 @@ test('installer QR-only mode cannot become create; input bounded', () => {
   assert.throws(() => provision.parseArgs(['Cafe', 'cafe', '10', 'red']))
 })
 
+test('Windows launcher can pass the management PIN through the environment', () => {
+  const previous = process.env.SERVIQ_ADMIN_PIN
+  process.env.SERVIQ_ADMIN_PIN = '12345678'
+  try {
+    assert.equal(provision.parseArgs(['Cafe', 'cafe', '10', '#112233']).password, '12345678')
+  } finally {
+    if (previous === undefined) delete process.env.SERVIQ_ADMIN_PIN
+    else process.env.SERVIQ_ADMIN_PIN = previous
+  }
+})
+
 test('installer refuses an existing tenant without writing or changing its password', async () => {
   const originalFetch = globalThis.fetch
   const previousURL = process.env.VITE_FIREBASE_DATABASE_URL

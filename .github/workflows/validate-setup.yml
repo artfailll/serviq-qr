@@ -1,0 +1,100 @@
+name: Validate Serviq setup
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: validate-serviq
+  cancel-in-progress: true
+
+jobs:
+  app-tests-and-build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build production bundle with non-secret test configuration
+        run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: test-api-key
+          VITE_FIREBASE_DATABASE_URL: https://serviq-ci-default-rtdb.europe-west1.firebasedatabase.app
+          VITE_FIREBASE_PROJECT_ID: serviq-ci
+
+      - name: Smoke-test terminal BAT flow with an isolated local Git repository
+        shell: pwsh
+        run: |
+          $testHome = Join-Path $env:RUNNER_TEMP 'serviq-installer-home'
+          $repo = Join-Path $testHome 'Serviq/serviq-qr'
+          $bare = Join-Path $env:RUNNER_TEMP 'serviq-installer-origin.git'
+          New-Item -ItemType Directory -Force -Path $repo, (Join-Path $repo 'node_modules'), (Join-Path $repo 'scripts') | Out-Null
+          git init --bare --initial-branch=main $bare
+          git init --initial-branch=main $repo
+          git -C $repo config user.name 'Serviq CI'
+          git -C $repo config user.email 'serviq-ci@example.invalid'
+          Set-Content -Path (Join-Path $repo '.gitignore') -Value @('.env','node_modules/','kurulum-paketleri/')
+          Set-Content -Path (Join-Path $repo '.env.example') -Value @('VITE_FIREBASE_API_KEY=','VITE_FIREBASE_DATABASE_URL=','VITE_FIREBASE_PROJECT_ID=')
+          Set-Content -Path (Join-Path $repo '.env') -Value @('VITE_FIREBASE_API_KEY=test','VITE_FIREBASE_DATABASE_URL=https://test-default-rtdb.firebaseio.com','VITE_FIREBASE_PROJECT_ID=test')
+          Set-Content -Path (Join-Path $repo 'package.json') -Value '{"name":"serviq-smoke","version":"1.0.0","private":true}'
+          Set-Content -Path (Join-Path $repo 'yeni-musteri.cjs') -Value '// smoke test placeholder'
+          Set-Content -Path (Join-Path $repo 'scripts/provision.cjs') -Value '// smoke test placeholder'
+          git -C $repo add .gitignore yeni-musteri.cjs scripts/provision.cjs
+          git -C $repo commit -m 'Create isolated installer smoke-test fixture'
+          git -C $repo remote add origin $bare
+          git -C $repo push -u origin main
+          $env:USERPROFILE = $testHome
+          $bat = Join-Path $env:GITHUB_WORKSPACE 'YENI-RESTORAN-KUR.bat'
+          $batContent = Get-Content $bat -Raw
+          foreach ($prompt in @('Firebase API key:', 'Firebase Realtime Database URL', 'Firebase Project ID:', 'Restoran adi:', 'Isletme ID', 'Masa sayisi', 'Marka rengi HEX', 'Yonetim PIN')) {
+            if ($batContent -notmatch [regex]::Escape($prompt)) { throw "Missing interactive prompt: $prompt" }
+          }
+          $psi = [System.Diagnostics.ProcessStartInfo]::new()
+          $psi.FileName = 'cmd.exe'
+          $psi.Arguments = "/d /c `"$bat`""
+          $psi.WorkingDirectory = $env:GITHUB_WORKSPACE
+          $psi.RedirectStandardInput = $true
+          $psi.RedirectStandardOutput = $true
+          $psi.RedirectStandardError = $true
+          $psi.UseShellExecute = $false
+          $psi.CreateNoWindow = $true
+          $psi.EnvironmentVariables['USERPROFILE'] = $testHome
+          $psi.EnvironmentVariables['SERVIQ_BUSINESS_NAME'] = 'Test Restoran'
+          $psi.EnvironmentVariables['SERVIQ_BUSINESS_ID'] = 'test-restoran'
+          $psi.EnvironmentVariables['SERVIQ_TABLE_COUNT'] = '10'
+          $psi.EnvironmentVariables['SERVIQ_BRAND_COLOR'] = '#f97316'
+          $psi.EnvironmentVariables['SERVIQ_SETUP_ADMIN_PIN'] = '12345678'
+          $proc = [System.Diagnostics.Process]::Start($psi)
+          $proc.StandardInput.WriteLine('x')
+          $proc.StandardInput.Close()
+          $output = $proc.StandardOutput.ReadToEnd()
+          $errorText = $proc.StandardError.ReadToEnd()
+          $proc.WaitForExit()
+          if ($proc.ExitCode -ne 0) {
+            Write-Host $output
+            if ($errorText) { Write-Host $errorText }
+            throw "BAT smoke test failed with exit code $($proc.ExitCode)"
+          }
+          if ($output -notmatch 'Kurulum dosyalari hazir') {
+            Write-Host $output
+            throw 'BAT did not reach the expected successful terminal path'
+          }
+          Write-Host 'BAT terminal flow reached successful completion with a local Git fixture.'
