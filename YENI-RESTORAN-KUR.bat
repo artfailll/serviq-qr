@@ -27,7 +27,7 @@ if errorlevel 1 (
 if not exist "%INSTALL_ROOT%" mkdir "%INSTALL_ROOT%"
 if not exist "%REPO_DIR%\.git" (
   echo Serviq GitHub deposu indiriliyor...
-  git clone "%REPO_URL%" "%REPO_DIR%"
+  git clone --branch feature/windows-restaurant-setup-bat "%REPO_URL%" "%REPO_DIR%"
   if errorlevel 1 (
     echo HATA: Depo indirilemedi. Ozel depo icin GitHub oturumunuzu kontrol edin.
     pause
