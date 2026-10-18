@@ -7,7 +7,9 @@ require('dotenv').config({ path: process.env.SERVIQ_ENV_FILE || path.join(ROOT, 
 
 function parseArgs(args) {
   const onlyQR = args[0] === '--only-qr'
-  const [name, id, count = '10', color = '#f97316', password] = onlyQR ? ['', args[1]] : args
+  const [name, id, count = '10', color = '#f97316', passwordArg] = onlyQR ? ['', args[1]] : args
+  // BAT launcher passes the PIN through the environment, not the command line.
+  const password = passwordArg || process.env.SERVIQ_ADMIN_PIN
   if (!id || id.length > 100 || /[.#$\[\]\/\u0000-\u001f\u007f]/u.test(id)) throw new Error('Geçersiz işletme ID.')
   if (!onlyQR && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) throw new Error('Yeni işletme ID: küçük harf, rakam ve tire kullanın.')
   if (!onlyQR && (!name?.trim() || name.length > 100)) throw new Error('İşletme adı 1–100 karakter olmalı.')
