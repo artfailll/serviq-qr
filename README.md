@@ -61,7 +61,7 @@ yerel `npm run dev` ortamında AI özellikleri çalışmaz — bu normaldir.
 
 Yeni müşteri kurulumu: `node yeni-musteri.cjs "İşletme Adı" isletme-id 20`
 
-Windows'ta masaüstünden kurulum başlatmak için `YENI-RESTORAN-KUR.bat` dosyasını çalıştırın. İlk çalıştırmada GitHub deposunu indirir ve `.env` ayarlarını hazırlatır; sonraki çalıştırmalarda restoran adı, işletme ID'si, masa sayısı, renk ve sunucuda tanımlı yönetim PIN'ini ister. Gereksinimler: Git for Windows ve Node.js LTS. BAT dosyası mevcut depo dosyalarını otomatik güncellemez.
+Windows'ta masaüstünden kurulum başlatmak için `YENI-RESTORAN-KUR.bat` dosyasını çalıştırın. Android'de güncel Termux kullanarak `YENI-RESTORAN-KUR-ANDROID.sh` betiğini çalıştırabilirsiniz. Özel depo için yalnızca okuma yetkili GitHub token'ı gerekir; token betik tarafından diske kaydedilmez. İlk çalıştırmada GitHub deposunu indirir ve `.env` ayarlarını hazırlatır; sonraki çalıştırmalarda restoran adı, işletme ID'si, masa sayısı, renk ve sunucuda tanımlı yönetim PIN'ini ister. Gereksinimler: Git for Windows ve Node.js LTS. BAT dosyası mevcut depo dosyalarını otomatik güncellemez.
 
 ---
 
