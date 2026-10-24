@@ -114,15 +114,9 @@ test('installer QR-only mode cannot become create; input bounded', () => {
   assert.throws(() => provision.parseArgs(['Cafe', 'cafe', '10', 'red']))
 })
 
-test('Windows launcher can pass the management PIN through the environment', () => {
-  const previous = process.env.SERVIQ_ADMIN_PIN
-  process.env.SERVIQ_ADMIN_PIN = '12345678'
-  try {
-    assert.equal(provision.parseArgs(['Cafe', 'cafe', '10', '#112233']).password, '12345678')
-  } finally {
-    if (previous === undefined) delete process.env.SERVIQ_ADMIN_PIN
-    else process.env.SERVIQ_ADMIN_PIN = previous
-  }
+test('Windows launcher does not require a management PIN', () => {
+  const setup = provision.parseArgs(['Cafe', 'cafe', '10', '#112233'])
+  assert.deepEqual(setup, { onlyQR: false, name: 'Cafe', id: 'cafe', count: 10, color: '#112233' })
 })
 
 test('installer refuses an existing tenant without writing or changing its password', async () => {
@@ -135,7 +129,7 @@ test('installer refuses an existing tenant without writing or changing its passw
     return new Response(JSON.stringify({ menu: { profile: { name: 'Already installed' } } }), { status: 200, headers: { etag: 'existing' } })
   }
   try {
-    await assert.rejects(provision.main(['Cafe', 'existing-cafe', '10', '#112233', 'placeholder-test-pin']), /zaten var/)
+    await assert.rejects(provision.main(['Cafe', 'existing-cafe', '10', '#112233']), /zaten var/)
     assert.deepEqual(requests.map(r => r.method), ['GET'])
   } finally {
     globalThis.fetch = originalFetch
