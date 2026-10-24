@@ -131,12 +131,12 @@ goto env_ready
 
 :configure_env
 echo.
-echo Serviq'in canli Firebase ayarlari otomatik aliniyor...
+echo Serviq'in Firebase ayarlari hazirlaniyor...
 call node scripts\bootstrap-firebase.cjs
 if errorlevel 1 (
   echo.
-  echo HATA: Firebase ayarlari otomatik alinamadi.
-  echo Internet baglantisini kontrol edin; kurulum guvenlik icin durduruldu.
+  echo HATA: Firebase ayarlari hazirlanamadi.
+  echo Internet baglantisini kontrol edin.
   pause
   exit /b 1
 )
@@ -189,20 +189,9 @@ if not defined SERVIQ_BRAND_COLOR set /p "BRAND_COLOR=Marka rengi HEX [#f97316]:
 if not defined BRAND_COLOR set "BRAND_COLOR=#f97316"
 
 echo.
-echo Not: Bu PIN, serviq.com.tr sunucusunda SERVIQ_ADMIN_PINS icinde tanimli PIN ile ayni olmalidir.
-set "SERVIQ_ADMIN_PIN=%SERVIQ_SETUP_ADMIN_PIN%"
-if not defined SERVIQ_ADMIN_PIN set /p "SERVIQ_ADMIN_PIN=Yonetim PIN'i (en az 8 karakter): "
-if not defined SERVIQ_ADMIN_PIN (
-  echo HATA: PIN bos olamaz.
-  pause
-  exit /b 1
-)
-
-echo.
 echo Kurulum baslatiliyor...
 node yeni-musteri.cjs "%BIZ_NAME%" "%BIZ_ID%" "%TABLE_COUNT%" "%BRAND_COLOR%"
 set "RESULT=%ERRORLEVEL%"
-set "SERVIQ_ADMIN_PIN="
 if not "%RESULT%"=="0" (
   echo.
   echo Kurulum basarisiz. Yukaridaki hata mesajini kontrol edin.
@@ -211,7 +200,7 @@ if not "%RESULT%"=="0" (
 )
 
 echo.
-echo Kurulum dosyalari hazir. kurulum-paketleri klasorunu kontrol edin.
+echo Kurulum tamamlandi. kurulum-paketleri klasorunu kontrol edin.
 echo QR-YAZDIR.html dosyasini acip QR kodlarini yazdirabilirsiniz.
 pause
 exit /b 0
