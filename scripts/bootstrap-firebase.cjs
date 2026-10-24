@@ -7,6 +7,15 @@ const path = require('node:path')
 const ROOT = path.resolve(__dirname, '..')
 const SITE_URL = 'https://serviq.com.tr/'
 const MAX_ASSETS = 60
+const FALLBACK_FIREBASE_CONFIG = Object.freeze({
+  apiKey: 'AIzaSyAWInJHzYJCmUqK_YTom9msRYT_LpujzaA',
+  authDomain: 'sofra-restoran.firebaseapp.com',
+  databaseURL: 'https://sofra-restoran-default-rtdb.europe-west1.firebasedatabase.app',
+  projectId: 'sofra-restoran',
+  storageBucket: 'sofra-restoran.firebasestorage.app',
+  messagingSenderId: '401656388209',
+  appId: '1:401656388209:web:7f1302e2c90c990cd3d9d0',
+})
 
 function valueFor(source, key) {
   const match = source.match(new RegExp(key + '\\s*:\\s*[\\x22\\x27]([^\\x22\\x27]+)[\\x22\\x27]'))
@@ -77,27 +86,31 @@ function renderEnv(config) {
 }
 
 async function discoverFirebaseConfig() {
-  const first = await getText(SITE_URL)
-  const queue = jsReferences(first.text, first.url)
-  const visited = new Set()
-  const sources = []
-  while (queue.length && visited.size < MAX_ASSETS) {
-    const url = queue.shift()
-    if (visited.has(url)) continue
-    visited.add(url)
-    try {
-      const asset = await getText(url)
-      sources.push(asset.text)
-      for (const reference of jsReferences(asset.text, asset.url)) {
-        if (!visited.has(reference) && !queue.includes(reference) && queue.length + visited.size < MAX_ASSETS) queue.push(reference)
+  try {
+    const first = await getText(SITE_URL)
+    const queue = jsReferences(first.text, first.url)
+    const visited = new Set()
+    const sources = []
+    while (queue.length && visited.size < MAX_ASSETS) {
+      const url = queue.shift()
+      if (visited.has(url)) continue
+      visited.add(url)
+      try {
+        const asset = await getText(url)
+        sources.push(asset.text)
+        for (const reference of jsReferences(asset.text, asset.url)) {
+          if (!visited.has(reference) && !queue.includes(reference) && queue.length + visited.size < MAX_ASSETS) queue.push(reference)
+        }
+      } catch {
+        // A single optional chunk may be unavailable; inspect the remaining assets.
       }
-    } catch {
-      // A single optional chunk may be unavailable; inspect the remaining assets.
     }
+    const config = extractFirebaseConfigFromScripts(sources)
+    if (config) return config
+  } catch {
+    // The public website may be temporarily unavailable during deployment.
   }
-  const config = extractFirebaseConfigFromScripts(sources)
-  if (!config) throw new Error('Canli sitede kullanilan Firebase web ayarlari bulunamadi.')
-  return config
+  return FALLBACK_FIREBASE_CONFIG
 }
 
 async function main() {
