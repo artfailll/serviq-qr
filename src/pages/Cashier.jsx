@@ -23,6 +23,7 @@ import {
   useOrders,
   useCalls,
   useProfile,
+  updateProfile,
   setOrderStatus,
   markOrderPaid,
   resolveCall,
@@ -77,18 +78,25 @@ function CashierBoard() {
   useEffect(() => {
     const ids = new Set(orders.map((o) => o.id))
     if (seenPrint.current === null) { seenPrint.current = ids; return }
-    if (profile.printAuto) {
+    if (profile.kitchenEnabled !== false && profile.printAuto) {
       orders.filter((o) => !seenPrint.current.has(o.id) && o.status === 'new')
         .forEach((o) => printKitchenSlip(o, profile))
     }
     seenPrint.current = ids
   }, [orders, profile])
 
+  const hasKitchen = profile.kitchenEnabled !== false
   const active = orders.filter((o) => o.status !== 'paid' && o.status !== 'cancelled')
   const paidToday = orders.filter((o) => o.status === 'paid' && isToday(o.createdAt))
   const revenue = paidToday.reduce((s, o) => s + o.total, 0)
   const pendingCount = orders.filter((o) => o.status === 'new').length
   const cookingCount = orders.filter((o) => o.status === 'kitchen').length
+  const readyCount = orders.filter((o) => o.status === 'ready').length
+  const activeColumns = hasKitchen ? COLUMNS : [
+    { key: 'new', label: 'Yeni', accent: 'border-brand-400', dot: 'bg-brand-500' },
+    { key: 'ready', label: 'Hazır', accent: 'border-green-400', dot: 'bg-green-500' },
+    { key: 'served', label: 'Servis Edildi · Ödeme Bekliyor', accent: 'border-sky-400', dot: 'bg-sky-500' },
+  ]
   const awaitingPay = orders.filter((o) => o.status === 'served').length
 
   function enableSound() {
@@ -122,6 +130,18 @@ function CashierBoard() {
               <LayoutDashboard className="h-4 w-4" />
               Yönetim
             </Link>
+            <button
+              onClick={() => updateProfile(bizId, { kitchenEnabled: !hasKitchen })}
+              className={`btn !py-2 flex items-center gap-1.5 transition-all text-xs font-bold border ${
+                hasKitchen
+                  ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 shadow-sm'
+                  : 'bg-ink-100 text-ink-600 border-ink-200 hover:bg-ink-200'
+              }`}
+              title={hasKitchen ? 'Mutfak süreci açık (kapatmak için tıklayın)' : 'Mutfak süreci kapalı (açmak için tıklayın)'}
+            >
+              <ChefHat className={`h-4 w-4 ${hasKitchen ? 'text-amber-600' : 'text-ink-400'}`} />
+              <span>Mutfak: <b>{hasKitchen ? 'Açık' : 'Kapalı'}</b></span>
+            </button>
             {soundOn ? (
               <button onClick={() => setSoundPref(false)} className="btn-ghost !py-2" title="Sesi kapat">
                 <Volume2 className="h-4 w-4 text-green-600" />
@@ -138,7 +158,11 @@ function CashierBoard() {
 
         <div className="mx-auto max-w-7xl px-4 pb-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           <Stat icon={ListChecks} label="Bekleyen" value={pendingCount} tone="brand" />
-          <Stat icon={ChefHat} label="Hazırlanan" value={cookingCount} tone="amber" />
+          {hasKitchen ? (
+            <Stat icon={ChefHat} label="Hazırlanan" value={cookingCount} tone="amber" />
+          ) : (
+            <Stat icon={Check} label="Hazır" value={readyCount} tone="green" />
+          )}
           <Stat icon={Wallet} label="Ödeme Bekleyen" value={awaitingPay} tone="sky" />
           <Stat icon={CircleDollarSign} label="Günlük Ciro" value={money(revenue)} tone="ink" />
         </div>
@@ -163,9 +187,9 @@ function CashierBoard() {
           </div>
         )}
 
-        <div className="grid gap-4 lg:grid-cols-4 sm:grid-cols-2">
-          {COLUMNS.map((col) => {
-            const items = active.filter((o) => o.status === col.key)
+        <div className={`grid gap-4 ${hasKitchen ? 'lg:grid-cols-4 sm:grid-cols-2' : 'lg:grid-cols-3 sm:grid-cols-3'}`}>
+          {activeColumns.map((col) => {
+            const items = active.filter((o) => o.status === col.key || (!hasKitchen && col.key === 'ready' && o.status === 'kitchen'))
             return (
               <section key={col.key} className="flex flex-col">
                 <div className="flex items-center gap-2 px-1 pb-2">
@@ -175,7 +199,7 @@ function CashierBoard() {
                 </div>
                 <div className="space-y-3">
                   {items.map((o) => (
-                    <OrderCard key={o.id} order={o} accent={col.accent} bizId={bizId} profile={profile} cashierId={cashierId} />
+                    <OrderCard key={o.id} order={o} accent={col.accent} bizId={bizId} profile={profile} cashierId={cashierId} hasKitchen={hasKitchen} />
                   ))}
                   {items.length === 0 && (
                     <div className="rounded-2xl border-2 border-dashed border-ink-200 py-8 text-center text-sm text-ink-400">
@@ -198,6 +222,7 @@ function Stat({ icon: Icon, label, value, tone }) {
     amber: 'text-amber-600 bg-amber-100',
     sky: 'text-sky-600 bg-sky-100',
     ink: 'text-ink-700 bg-ink-200',
+    green: 'text-green-600 bg-green-100',
   }
   return (
     <div className="card !rounded-xl p-3 flex items-center gap-3">
@@ -239,11 +264,15 @@ function CallBanner({ call, bizId }) {
   )
 }
 
-function OrderCard({ order, accent, bizId, profile, cashierId }) {
+function OrderCard({ order, accent, bizId, profile, cashierId, hasKitchen }) {
   const mins = (Date.now() - (order.createdAt || 0)) / 60000
   const overdue = order.status !== 'served' && mins >= OVERDUE_MIN
   const isServed = order.status === 'served'
   const [payOpen, setPayOpen] = useState(false)
+
+  const nextTarget = hasKitchen ? NEXT[order.status] : (order.status === 'new' ? 'ready' : (order.status === 'ready' ? 'served' : null))
+  const prevTarget = hasKitchen ? PREV[order.status] : (order.status === 'ready' ? 'new' : (order.status === 'served' ? 'ready' : null))
+  const nextBtnLabel = hasKitchen ? NEXT_LABEL[order.status] : (order.status === 'new' ? 'Hazır' : (order.status === 'ready' ? 'Servis Et' : ''))
 
   return (
     <article
@@ -287,22 +316,24 @@ function OrderCard({ order, accent, bizId, profile, cashierId }) {
           >
             <Ban className="h-4 w-4" />
           </button>
-          {PREV[order.status] && (
+          {prevTarget && (
             <button
-              onClick={() => setOrderStatus(bizId, order.id, PREV[order.status])}
+              onClick={() => setOrderStatus(bizId, order.id, prevTarget)}
               className="btn-ghost !py-1.5 !px-2.5"
               title="Geri al"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
           )}
-          <button
-            onClick={() => printKitchenSlip(order, profile)}
-            className="btn-ghost !py-1.5 !px-2.5"
-            title="Mutfak adisyonu yazdır"
-          >
-            <Printer className="h-4 w-4" />
-          </button>
+          {hasKitchen && (
+            <button
+              onClick={() => printKitchenSlip(order, profile)}
+              className="btn-ghost !py-1.5 !px-2.5"
+              title="Mutfak adisyonu yazdır"
+            >
+              <Printer className="h-4 w-4" />
+            </button>
+          )}
           {isServed ? (
             <>
               <button
@@ -322,13 +353,15 @@ function OrderCard({ order, accent, bizId, profile, cashierId }) {
               </button>
             </>
           ) : (
-            <button
-              onClick={() => setOrderStatus(bizId, order.id, NEXT[order.status])}
-              className="btn-primary !py-2"
-            >
-              {NEXT_LABEL[order.status]}
-              <ArrowRight className="h-4 w-4" />
-            </button>
+            nextTarget && (
+              <button
+                onClick={() => setOrderStatus(bizId, order.id, nextTarget)}
+                className="btn-primary !py-2"
+              >
+                {nextBtnLabel}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            )
           )}
         </div>
       </div>

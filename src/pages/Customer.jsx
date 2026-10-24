@@ -1935,6 +1935,7 @@ function NutritionInfo({ product, T, t }) {
 /* ══════════ Sipariş takibi + değerlendirme ══════════ */
 const STATUS_STEPS = ['new', 'kitchen', 'ready', 'served']
 function OrderTracker({ orders, T, accent, rgb, t, D, bizId, tableNo, profile }) {
+  const activeSteps = profile?.kitchenEnabled === false ? ['new', 'ready', 'served'] : STATUS_STEPS
   const stLabel = { new:t('stNew'), kitchen:t('stKitchen'), ready:t('stReady'), served:t('stServed') }
   const [rated, setRated] = useState(() => { try { return JSON.parse(localStorage.getItem(RATED_KEY(bizId)) || '{}') } catch { return {} } })
   const [fbFor, setFbFor] = useState(null) // düşük puan → feedback formu açık order id
@@ -1961,7 +1962,7 @@ function OrderTracker({ orders, T, accent, rgb, t, D, bizId, tableNo, profile })
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
       {orders.map(o => {
-        const stepIdx = Math.max(STATUS_STEPS.indexOf(o.status), o.status==='paid' ? 3 : 0)
+        const stepIdx = Math.max(activeSteps.indexOf(o.status), o.status==='paid' ? (activeSteps.length - 1) : 0)
         const showRate = (o.status === 'served' || o.status === 'paid')
         return (
           <div key={o.id} style={{ background:T.surface, border:`1px solid ${T.surfaceBorder}`, borderRadius:18, padding:16 }}>
@@ -1974,11 +1975,11 @@ function OrderTracker({ orders, T, accent, rgb, t, D, bizId, tableNo, profile })
 
             {/* Durum çubuğu */}
             <div style={{ display:'flex', alignItems:'center', gap:0 }}>
-              {STATUS_STEPS.map((st, i) => {
+              {activeSteps.map((st, i) => {
                 const done = i <= stepIdx
                 const current = i === stepIdx && o.status !== 'paid'
                 return (
-                  <div key={st} style={{ flex: i < STATUS_STEPS.length-1 ? 1 : 0, display:'flex', alignItems:'center' }}>
+                  <div key={st} style={{ flex: i < activeSteps.length-1 ? 1 : 0, display:'flex', alignItems:'center' }}>
                     <div style={{
                       width: current ? 26 : 20, height: current ? 26 : 20, borderRadius:'50%', flexShrink:0,
                       background: done ? accent : T.inputBg,
@@ -1987,7 +1988,7 @@ function OrderTracker({ orders, T, accent, rgb, t, D, bizId, tableNo, profile })
                       boxShadow: current ? `0 0 0 5px rgba(${rgb},.18)` : 'none', transition:'all .3s' }}>
                       {done && <Check size={current?13:11} strokeWidth={3.5} color="#fff" />}
                     </div>
-                    {i < STATUS_STEPS.length-1 && <div style={{ flex:1, height:2.5, background: i < stepIdx ? accent : T.inputBg, transition:'background .3s' }} />}
+                    {i < activeSteps.length-1 && <div style={{ flex:1, height:2.5, background: i < stepIdx ? accent : T.inputBg, transition:'background .3s' }} />}
                   </div>
                 )
               })}
