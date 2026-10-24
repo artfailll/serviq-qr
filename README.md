@@ -61,7 +61,7 @@ yerel `npm run dev` ortamında AI özellikleri çalışmaz — bu normaldir.
 
 Yeni müşteri kurulumu: `node yeni-musteri.cjs "İşletme Adı" isletme-id 20`
 
-Windows'ta masaüstünden kurulum başlatmak için `YENI-RESTORAN-KUR.bat` dosyasını çalıştırın. Android'de güncel Termux kullanarak `YENI-RESTORAN-KUR-ANDROID.sh` betiğini çalıştırabilirsiniz. Özel depo için GitHub erişimi gerekir; kimlik doğrulama bilgileri betik tarafından dosyaya yazılmaz. Windows BAT, `%USERPROFILE%\\Serviq\\serviq-qr` içindeki yönetilen kopyayı kullanır, `main` dalını günceller ve kaydedilmemiş takip edilen değişiklik görürse durur. İlk kurulumda Firebase ayarlarını terminalden ister; sonraki çalıştırmalarda restoran adı, işletme ID'si, masa sayısı, renk ve sunucuda tanımlı yönetim PIN'ini ister. Gereksinimler: Git for Windows, Node.js LTS ve npm.
+Windows'ta `YENI-RESTORAN-KUR.bat` dosyasını çift tıklayın. Kurulum GitHub'dan güncel dosyaları alır; Firebase ayarını otomatik hazırlar ve PIN sormaz. Restoran adı, kısa işletme ID'si, masa sayısı ve renk girilir. Var olan işletme ID'si ikinci kez oluşturulmaz ve verileri ezilmez. Eski müşteri/sipariş verileri başka işletme ID'sinde tutuluyorsa otomatik taşınmaz; eski ID'den ayrıca aktarılmalıdır. İletişim formu WhatsApp'ta hazır mesaj açar; mesajı göndermek için WhatsApp'ta Gönder'e basılmalıdır. Gereksinimler: Git for Windows, Node.js LTS ve npm.
 
 ---
 
