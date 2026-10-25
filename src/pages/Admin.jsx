@@ -7,7 +7,7 @@ import MenuManager from '../components/admin/MenuManager'
 import Stats from '../components/admin/Stats'
 import ProfileEditor from '../components/admin/ProfileEditor'
 import OperationsHub from '../components/admin/OperationsHub'
-import AdminLogin, { useAdminAuthState } from './AdminLogin'
+import AdminLogin, { useRoleAuthState } from './AdminLogin'
 import { playNewOrder, primeAudio, useSoundPref, setSoundPref } from '../lib/sound'
 import { useBusinessId } from '../lib/store'
 
@@ -31,7 +31,7 @@ export default function Admin() {
   const bizId = useBusinessId()
   const [tab, setTab] = useState('tables')
   const [justAuthed, setJustAuthed] = useState(false)
-  const status = useAdminAuthState()
+  const status = useRoleAuthState('admin')
   const soundOn = useSoundPref()
 
   function enableSound() {
@@ -52,7 +52,7 @@ export default function Admin() {
 
   const unlocked = status === 'open' || status === 'authed' || justAuthed
   if (!unlocked) {
-    return <AdminLogin onSuccess={() => setJustAuthed(true)} />
+    return <AdminLogin role="admin" onSuccess={() => setJustAuthed(true)} />
   }
 
   const h = HEADERS[tab]

@@ -132,7 +132,7 @@ export async function adjustStockManual(bizId, id, delta, reason) {
 export const addStaffMember = (bizId, member) => {
   const name = String(member.name || '').trim()
   if (!name) return null
-  return pushItem(p(bizId, 'staff/members'), { name: name.slice(0, 100), role: member.role || 'waiter', phone: String(member.phone || '').slice(0, 30), active: member.active !== false, createdAt: now(), updatedAt: now() })
+  return pushItem(p(bizId, 'staff/members'), { name: name.slice(0, 100), role: member.role || 'waiter', phone: String(member.phone || '').slice(0, 30), pin: String(member.pin || '').trim().slice(0, 10), active: member.active !== false, createdAt: now(), updatedAt: now() })
 }
 export const updateStaffMember = (bizId, id, patch) => updateValue(p(bizId, `staff/members/${id}`), { ...patch, updatedAt: now() })
 export const removeStaffMember = (bizId, id) => removeValue(p(bizId, `staff/members/${id}`))

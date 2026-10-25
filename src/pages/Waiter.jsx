@@ -2,18 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   UtensilsCrossed, Search, Plus, Minus, X, Send, ArrowLeft,
-  LayoutGrid, Check, Trash2, StickyNote,
+  LayoutGrid, Check, Trash2, StickyNote, LogOut,
 } from 'lucide-react'
 import {
   useProfile, useCategories, useProducts, useTables, createOrder, useBusinessId, useActiveStaff,
 } from '../lib/store'
 import StaffPicker from '../components/StaffPicker'
 import { money } from '../lib/format'
-import AdminLogin, { useAdminAuthState } from './AdminLogin'
+import AdminLogin, { useRoleAuthState, clearStaffSession, getStaffSession } from './AdminLogin'
 
 export default function Waiter() {
   const bizId = useBusinessId()
-  const status = useAdminAuthState()
+  const status = useRoleAuthState('waiter')
   const [justAuthed, setJustAuthed] = useState(false)
 
   if (status === 'loading') {
@@ -24,12 +24,12 @@ export default function Waiter() {
     )
   }
   const unlocked = status === 'open' || status === 'authed' || justAuthed
-  if (!unlocked) return <AdminLogin onSuccess={() => setJustAuthed(true)} />
+  if (!unlocked) return <AdminLogin role="waiter" onSuccess={() => setJustAuthed(true)} />
 
-  return <WaiterPOS bizId={bizId} />
+  return <WaiterPOS bizId={bizId} onLogout={() => { clearStaffSession(bizId); setJustAuthed(false); window.location.reload() }} />
 }
 
-function WaiterPOS({ bizId }) {
+function WaiterPOS({ bizId, onLogout }) {
   const profile = useProfile(bizId)
   const categories = useCategories(bizId)
   const products = useProducts(bizId)
@@ -107,7 +107,7 @@ function WaiterPOS({ bizId }) {
   if (!table) {
     return (
       <div className="min-h-screen bg-ink-100">
-        <Header profile={profile} title="Garson · Masa Seç" bizId={bizId} />
+        <Header profile={profile} title="Garson · Masa Seç" bizId={bizId} onLogout={onLogout} />
         <div className="mx-auto max-w-3xl p-4">
           <div className="mb-3 flex items-center gap-2 text-ink-500">
             <LayoutGrid className="h-4 w-4" /> <span className="font-semibold">Sipariş girmek için masa seçin</span>
@@ -134,6 +134,7 @@ function WaiterPOS({ bizId }) {
         profile={profile}
         bizId={bizId}
         title={`Masa ${table.no}`}
+        onLogout={onLogout}
         left={<button disabled={sending} onClick={() => { setTable(null); setQuery('') }} className="btn-ghost !py-1.5 !px-2.5"><ArrowLeft className="h-4 w-4" /></button>}
       />
 
@@ -266,8 +267,8 @@ function CartSheet({ cart, total, tableNo, onClose, changeQty, setNote, send, se
   )
 }
 
-function Header({ profile, title, left, right, bizId }) {
-  const initial = (profile?.name || 'S')[0].toUpperCase()
+function Header({ profile, title, left, right, bizId, onLogout }) {
+  const staffRole = bizId ? getStaffSession(bizId)?.role : null; const canAccessKasa = staffRole && ['cashier', 'manager', 'owner'].includes(staffRole)
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-ink-200">
       <div className="mx-auto max-w-3xl px-4 py-3 flex items-center gap-3">
@@ -282,7 +283,7 @@ function Header({ profile, title, left, right, bizId }) {
         <div className="ml-auto flex items-center gap-2">
           {right}
           {bizId && <StaffPicker bizId={bizId} compact />}
-          <Link to={`/kasa?isletme=${encodeURIComponent(bizId)}`} className="btn-outline !py-2 hidden sm:inline-flex">Kasa</Link>
+          {canAccessKasa && <Link to={`/kasa?isletme=${encodeURIComponent(bizId)}`} className="btn-outline !py-2 hidden sm:inline-flex">Kasa</Link>}{onLogout && <button onClick={onLogout} className="btn-ghost !p-2 text-ink-400 hover:text-ink-700" title="Çıkış Yap"><LogOut className="h-4 w-4" /></button>}
         </div>
       </div>
     </header>

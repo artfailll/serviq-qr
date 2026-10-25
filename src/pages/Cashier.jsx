@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Printer,
   Ban,
+  LogOut,
 } from 'lucide-react'
 import {
   useOrders,
@@ -34,7 +35,7 @@ import {
   PAYMENT_LABELS,
 } from '../lib/store'
 import StaffPicker from '../components/StaffPicker'
-import AdminLogin, { useAdminAuthState } from './AdminLogin'
+import AdminLogin, { useRoleAuthState, clearStaffSession, getStaffSession } from './AdminLogin'
 import { money, clockMs, timeOfDay, isToday } from '../lib/format'
 import { EmptyState, DemoBadge } from '../components/ui'
 import PaymentModal from '../components/PaymentModal'
@@ -56,15 +57,18 @@ const NEXT_LABEL = { new: 'Mutfağa Al', kitchen: 'Hazır', ready: 'Servis Et' }
 const OVERDUE_MIN = 10
 
 export default function Cashier() {
-  const status = useAdminAuthState()
+  const bizId = useBusinessId()
+  const status = useRoleAuthState('cashier')
   const [justAuthed, setJustAuthed] = useState(false)
   if (status === 'loading') return <div className="min-h-screen grid place-items-center" role="status">Kasa erişimi doğrulanıyor…</div>
-  if (status !== 'open' && status !== 'authed' && !justAuthed) return <AdminLogin onSuccess={() => setJustAuthed(true)} />
-  return <CashierBoard />
+  if (status !== 'open' && status !== 'authed' && !justAuthed) return <AdminLogin role="cashier" onSuccess={() => setJustAuthed(true)} />
+  return <CashierBoard onLogout={() => { clearStaffSession(bizId); setJustAuthed(false); window.location.reload() }} />
 }
 
-function CashierBoard() {
+function CashierBoard({ onLogout }) {
   const bizId = useBusinessId()
+  const staffSession = getStaffSession(bizId)
+  const canAccessAdmin = !staffSession || staffSession.isMaster || ['owner', 'manager'].includes(staffSession?.role)
   const orders = useOrders(bizId)
   const calls = useCalls(bizId)
   const profile = useProfile(bizId)
@@ -126,10 +130,17 @@ function CashierBoard() {
               <UtensilsCrossed className="h-4 w-4" />
               Garson
             </Link>
-            <Link to={`/yonetim?isletme=${encodeURIComponent(bizId)}`} className="btn-outline !py-2 hidden sm:inline-flex">
-              <LayoutDashboard className="h-4 w-4" />
-              Yönetim
-            </Link>
+            {canAccessAdmin && (
+              <Link to={`/yonetim?isletme=${encodeURIComponent(bizId)}`} className="btn-outline !py-2 hidden sm:inline-flex">
+                <LayoutDashboard className="h-4 w-4" />
+                Yönetim
+              </Link>
+            )}
+            {onLogout && (
+              <button onClick={onLogout} className="btn-ghost !p-2 text-ink-500 hover:text-ink-800" title="Kasiyer Değiştir / Çıkış">
+                <LogOut className="h-4 w-4" />
+              </button>
+            )}
             <button
               onClick={() => updateProfile(bizId, { kitchenEnabled: !hasKitchen })}
               className={`btn !py-2 flex items-center gap-1.5 transition-all text-xs font-bold border ${
