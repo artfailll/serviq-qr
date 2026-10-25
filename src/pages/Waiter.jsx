@@ -7,7 +7,7 @@ import {
 import {
   useProfile, useCategories, useProducts, useTables, createOrder, useBusinessId, useActiveStaff,
 } from '../lib/store'
-import StaffPicker from '../components/StaffPicker'
+// StaffPicker kaldirildi
 import { money } from '../lib/format'
 import AdminLogin, { useRoleAuthState, clearStaffSession, getStaffSession } from './AdminLogin'
 
@@ -282,7 +282,7 @@ function Header({ profile, title, left, right, bizId, onLogout }) {
         </div>
         <div className="ml-auto flex items-center gap-2">
           {right}
-          {bizId && <StaffPicker bizId={bizId} compact />}
+          {/* Personel secimi kaldirildi */}
           {canAccessKasa && <Link to={`/kasa?isletme=${encodeURIComponent(bizId)}`} className="btn-outline !py-2 hidden sm:inline-flex">Kasa</Link>}{onLogout && <button onClick={onLogout} className="btn-ghost !p-2 text-ink-400 hover:text-ink-700" title="Çıkış Yap"><LogOut className="h-4 w-4" /></button>}
         </div>
       </div>

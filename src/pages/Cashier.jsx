@@ -34,7 +34,7 @@ import {
   cancelOrder,
   PAYMENT_LABELS,
 } from '../lib/store'
-import StaffPicker from '../components/StaffPicker'
+// StaffPicker kaldirildi
 import AdminLogin, { useRoleAuthState, clearStaffSession, getStaffSession } from './AdminLogin'
 import { money, clockMs, timeOfDay, isToday } from '../lib/format'
 import { EmptyState, DemoBadge } from '../components/ui'
@@ -125,7 +125,6 @@ function CashierBoard({ onLogout }) {
 
           <div className="ml-auto flex items-center gap-2">
             <DemoBadge />
-            <StaffPicker bizId={bizId} compact />
             <Link to={`/garson?isletme=${encodeURIComponent(bizId)}`} className="btn-outline !py-2 hidden sm:inline-flex">
               <UtensilsCrossed className="h-4 w-4" />
               Garson
