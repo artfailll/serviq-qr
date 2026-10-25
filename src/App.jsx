@@ -23,14 +23,66 @@ function Loader() {
 }
 
 function NoBusiness() {
+  const [input, setInput] = useState('')
+  const currentPath = window.location.pathname === '/' || window.location.pathname === '' ? '/kasa' : window.location.pathname
+
+  function submit(val) {
+    const raw = (val || input || '').trim().toLowerCase()
+    if (!raw) return
+    try { localStorage.setItem('sofra_business_id', raw) } catch {}
+    const search = new URLSearchParams(window.location.search)
+    search.set('isletme', raw)
+    window.location.href = `${currentPath}?${search.toString()}`
+  }
+
   return (
-    <div className="min-h-screen grid place-items-center bg-ink-50 p-6">
-      <div className="card p-8 max-w-sm text-center">
-        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-red-100 text-red-500 mx-auto mb-4">
-          <UtensilsCrossed className="h-7 w-7" />
+    <div className="min-h-screen grid place-items-center bg-ink-50 p-4">
+      <div className="card p-8 max-w-md w-full text-center shadow-lg">
+        <div className="grid h-16 w-16 place-items-center rounded-2xl bg-brand-100 text-brand-600 mx-auto mb-4">
+          <UtensilsCrossed className="h-8 w-8" />
         </div>
-        <h2 className="font-display text-xl font-extrabold text-ink-900">İşletme bulunamadı</h2>
-        <p className="mt-2 text-sm text-ink-500">{NO_BUSINESS_ERROR}</p>
+        <h2 className="font-display text-2xl font-extrabold text-ink-900">İşletme Girişi</h2>
+        <p className="mt-2 text-sm text-ink-500">
+          Bu cihazda henüz işletme seçilmemiş. Lütfen bağlanmak istediğiniz işletmeyi seçin veya adını yazın:
+        </p>
+
+        <div className="mt-5">
+          <button
+            type="button"
+            onClick={() => submit('sezgin-usta-doner')}
+            className="w-full btn bg-brand-50 hover:bg-brand-100 text-brand-700 border-2 border-brand-200 !py-3.5 !rounded-xl font-bold flex items-center justify-center gap-2 text-base transition-all"
+          >
+            <span>🍖</span>
+            <span>Sezgin Usta Döner Ve Kebap Evi</span>
+          </button>
+        </div>
+
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-ink-200" /></div>
+          <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-ink-400">veya kimlik yazın</span></div>
+        </div>
+
+        <form onSubmit={(e) => { e.preventDefault(); submit() }} className="space-y-3">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="örn: sezgin-usta-doner"
+            className="inp text-center text-base !py-3 font-semibold"
+            autoFocus
+          />
+          <button
+            type="submit"
+            disabled={!input.trim()}
+            className="btn-primary w-full !py-3.5 text-base font-bold disabled:opacity-50"
+          >
+            Giriş Yap
+          </button>
+        </form>
+
+        <p className="mt-4 text-xs text-ink-400">
+          İpucu: Bir kez giriş yaptığınızda bu cihaz işletmenizi otomatik hatırlar.
+        </p>
       </div>
     </div>
   )

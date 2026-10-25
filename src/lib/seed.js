@@ -278,6 +278,10 @@ export async function ensureSeeded(bizId) {
   const base = `businesses/${bizId}/menu`
   const profile = await readValue(`${base}/profile`)
   if (profile?.name) return true
+  if (bizId && bizId.toLowerCase() !== bizId) {
+    const fallback = await readValue(`businesses/${bizId.toLowerCase()}/menu/profile`)
+    if (fallback?.name) return true
+  }
   if (!IS_DEMO || bizId !== 'demo') return false
   await setValue(base, buildSeedData())
   return true
