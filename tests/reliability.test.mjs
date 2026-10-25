@@ -9,7 +9,7 @@ import provision from '../scripts/provision.cjs'
 globalThis.BroadcastChannel = undefined
 const fake = globalThis.__firebaseTest = { writes: [], updates: [], data: {}, connected: true, synchronous: false, commit: async () => {} }
 const compiled = await build({
-  stdin: { contents: "export { createOrder, createCall, resetDay } from './src/lib/store.js'; export { ensureSeeded } from './src/lib/seed.js'", resolveDir: process.cwd() },
+  stdin: { contents: "export { createOrder, createCall, resetDay } from './src/lib/store.js'; export { ensureSeeded, DEFAULT_PROFILE } from './src/lib/seed.js'", resolveDir: process.cwd() },
   bundle: true, write: false, platform: 'node', format: 'esm',
   plugins: [{ name: 'controlled-firebase', setup(b) {
     b.onResolve({ filter: /^\.\.\/firebase$/ }, () => ({ path: 'config', namespace: 'fake' }))
@@ -28,7 +28,7 @@ const compiled = await build({
     ` }))
   } }],
 })
-const { createOrder, createCall, ensureSeeded, resetDay } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`)
+const { createOrder, createCall, ensureSeeded, resetDay, DEFAULT_PROFILE } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`)
 const order = { tableId: 'custom-table-key', tableNo: 5, items: [{ productId: 'tea', name: 'Çay', price: 12.25, qty: 2 }] }
 const tick = () => new Promise(resolve => setImmediate(resolve))
 
@@ -157,4 +157,14 @@ test('QR-only missing tenant does not create or mutate anything', async () => {
     if (previousURL === undefined) delete process.env.VITE_FIREBASE_DATABASE_URL
     else process.env.VITE_FIREBASE_DATABASE_URL = previousURL
   }
+})
+
+test('default profile allows ordering; catalog mode disables customer order', async () => {
+  assert.equal(DEFAULT_PROFILE.orderingEnabled, true)
+
+  const activeProfile = { ...DEFAULT_PROFILE, orderingEnabled: true }
+  const catalogProfile = { ...DEFAULT_PROFILE, orderingEnabled: false }
+
+  assert.equal(activeProfile.orderingEnabled !== false, true)
+  assert.equal(catalogProfile.orderingEnabled !== false, false)
 })

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { LayoutGrid, BookOpen, BarChart3, UtensilsCrossed, Monitor, Settings, LogOut, Volume2, VolumeX, BrainCircuit } from 'lucide-react'
+import { LayoutGrid, BookOpen, BarChart3, UtensilsCrossed, Monitor, Settings, LogOut, Volume2, VolumeX, BrainCircuit, QrCode } from 'lucide-react'
 import { DemoBadge } from '../components/ui'
 import TableMap from '../components/admin/TableMap'
 import MenuManager from '../components/admin/MenuManager'
@@ -9,7 +9,7 @@ import ProfileEditor from '../components/admin/ProfileEditor'
 import OperationsHub from '../components/admin/OperationsHub'
 import AdminLogin, { useRoleAuthState } from './AdminLogin'
 import { playNewOrder, primeAudio, useSoundPref, setSoundPref } from '../lib/sound'
-import { useBusinessId } from '../lib/store'
+import { useBusinessId, useProfile, updateProfile } from '../lib/store'
 
 const TABS = [
   { key: 'tables', label: 'Masa Haritası', icon: LayoutGrid },
@@ -29,6 +29,12 @@ const HEADERS = {
 
 export default function Admin() {
   const bizId = useBusinessId()
+  const profile = useProfile(bizId)
+  const orderingEnabled = profile?.orderingEnabled !== false
+
+  async function toggleOrdering() {
+    await updateProfile(bizId, { orderingEnabled: !orderingEnabled })
+  }
   const [tab, setTab] = useState('tables')
   const [justAuthed, setJustAuthed] = useState(false)
   const status = useRoleAuthState('admin')
@@ -99,6 +105,17 @@ export default function Admin() {
               <UtensilsCrossed className="h-5 w-5" />
               Garson Ekranı
             </Link>
+            <button
+              type="button"
+              onClick={toggleOrdering}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
+                orderingEnabled ? 'text-emerald-400 hover:bg-white/5' : 'text-amber-400 hover:bg-white/5'
+              }`}
+              title="Müşteri QR siparişini aç / kapat"
+            >
+              <QrCode className="h-5 w-5" />
+              <span>QR Sipariş: {orderingEnabled ? 'Açık' : 'Kapalı'}</span>
+            </button>
             {soundOn ? (
               <button onClick={() => setSoundPref(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-green-400 hover:bg-white/5 transition-colors cursor-pointer" title="Bildirim sesini kapat">
                 <Volume2 className="h-5 w-5" />
@@ -120,9 +137,24 @@ export default function Admin() {
 
         <main className="lg:pl-64 grow">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6">
-            <div className="mb-6">
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
               <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-ink-900">{h.t}</h1>
               <p className="mt-1 text-ink-500">{h.s}</p>
+              </div>
+              <button
+                type="button"
+                onClick={toggleOrdering}
+                className={`inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border transition-all cursor-pointer shadow-sm self-start sm:self-auto ${
+                  orderingEnabled
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                    : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+                }`}
+                title={orderingEnabled ? 'Müşteri siparişi açık. Tıklayarak Sadece Menü moduna alabilirsiniz.' : 'Sadece Menü modu devrede. Tıklayarak müşteri siparişini açabilirsiniz.'}
+              >
+                <span className={`h-2.5 w-2.5 rounded-full ${orderingEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                <span>Müşteri QR Siparişi: <b>{orderingEnabled ? 'Açık' : 'Kapalı (Sadece Menü)'}</b></span>
+              </button>
             </div>
             {tab === 'tables'  && <TableMap />}
             {tab === 'menu'    && <MenuManager />}

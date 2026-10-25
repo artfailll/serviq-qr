@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Save, Upload, Loader2, Palette, Globe, Wifi, Phone, MapPin, Instagram, Clock, Megaphone, Star, LayoutTemplate, Printer, Boxes, ChefHat } from 'lucide-react'
+import { Save, Upload, Loader2, Palette, Globe, Wifi, Phone, MapPin, Instagram, Clock, Megaphone, Star, LayoutTemplate, Printer, Boxes, ChefHat, QrCode } from 'lucide-react'
 import { useProfile, updateProfile, useBusinessId } from '../../lib/store'
 import { fileToCompressedDataURL } from '../../lib/image'
 import { ProductImage } from '../../components/ui'
@@ -335,6 +335,39 @@ export default function ProfileEditor() {
               className="h-4 w-4 accent-brand-500 shrink-0"
             />
           </label>
+        </div>
+
+        {/* Müşteri QR Siparişi (Sadece Menü Modu) */}
+        <div className="card p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display font-bold text-ink-800 flex items-center gap-2">
+              <QrCode className="h-4 w-4 text-brand-500" /> Müşteri QR Siparişi
+            </h3>
+            <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${data.orderingEnabled !== false ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+              {data.orderingEnabled !== false ? 'Sipariş Açık' : 'Sadece Menü'}
+            </span>
+          </div>
+          <p className="text-sm text-ink-400">
+            <b>Açık:</b> Müşteriler masadaki QR kodu okutarak sepete ürün ekleyebilir, sipariş verebilir, garson çağırabilir ve hesap isteyebilir.<br/>
+            <b>Kapalı (Sadece Menü):</b> Müşteriler yalnızca ürünleri ve fiyatları görüntüler (katalog modu). Sepet, sipariş verme, garson çağırma ve hesap isteme düğmeleri tamamen gizlenir.
+          </p>
+          <label className="flex items-center justify-between gap-3 rounded-xl bg-ink-50 px-4 py-3 cursor-pointer">
+            <span className="text-sm font-medium text-ink-700">
+              Müşteri masadan sipariş verebilsin: <b>{data.orderingEnabled !== false ? 'Açık' : 'Kapalı (Sadece Menü)'}</b>
+            </span>
+            <input
+              type="checkbox"
+              checked={data.orderingEnabled !== false}
+              onChange={(e) => set('orderingEnabled', e.target.checked)}
+              className="h-4 w-4 accent-brand-500 shrink-0"
+            />
+          </label>
+          {data.orderingEnabled === false && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2">
+              <span>ℹ️</span>
+              <span><b>Sadece Menü Modu Devrede:</b> Müşterileriniz QR menüyü inceleyebilir ancak sipariş veremez veya çağrı yapamaz. Bu ayarı sadece Yönetim değiştirebilir.</span>
+            </div>
+          )}
         </div>
 
         <LoyaltySettings value={data.loyalty} onChange={value => set('loyalty',value)} />

@@ -64,6 +64,7 @@ export default function Customer() {
   const T      = getTemplate(profile)
   const accent = getAccent(profile, T)
   const rgb    = toRgb(accent)
+  const allowOrdering = profile.orderingEnabled !== false
 
   // ── Google Font enjeksiyonu (şablona göre) ──
   useEffect(() => {
@@ -238,7 +239,7 @@ export default function Customer() {
   })
 
   function addToCart(product, qty, note, unitPrice, label) {
-    if (sendingRef.current || !open || !product.available) return
+    if (!allowOrdering || sendingRef.current || !open || !product.available) return
     const name = label || product.name
     const price = unitPrice ?? product.price
     // Kampanya menüsü: mutfak fişinde içerik görünsün diye özel not yoksa
@@ -260,7 +261,7 @@ export default function Customer() {
   }
 
   async function confirmOrder() {
-    if (sendingRef.current || !cart.length || !open) return
+    if (!allowOrdering || sendingRef.current || !cart.length || !open) return
     if (!tableId) { setOrderError('Masa bulunamadı. Masanızdaki QR kodu tekrar okutun.'); return }
     if (loyalty.enabled && customerInfo.consent && String(customerInfo.phone).replace(/\D/g,'').length < 10) { setOrderError('Sadakat puanı için geçerli telefon numarası girin veya katılım işaretini kaldırın.'); return }
     sendingRef.current = true
@@ -282,7 +283,7 @@ export default function Customer() {
   }
 
   async function call(type) {
-    if (callPending.current) return
+    if (!allowOrdering || callPending.current) return
     if (!tableId) { showToast('Masa bulunamadı. QR kodu tekrar okutun.'); return }
     const now2 = Date.now()
     const remain = CALL_COOLDOWN_MS - (now2 - (lastCallAt[type] || 0))
@@ -330,13 +331,13 @@ export default function Customer() {
     combo: !!p2.comboItems?.length,
   })
 
-  const cardProps = { T, accent, rgb, t, trName, trDesc, badge, onOpen: (p2) => p2.available && setDetail(p2), onQuickAdd: (p2) => {
+  const cardProps = { T, accent, rgb, t, trName, trDesc, badge, onOpen: (p2) => p2.available && setDetail(p2), onQuickAdd: allowOrdering ? (p2) => {
     if (p2.variants?.length || p2.extras?.length) setDetail(p2)
     else addToCart(p2, 1, '')
-  } }
+  } : undefined }
 
   return (
-    <div className="customer-menu" data-template={T.id} dir={isRTL ? 'rtl' : 'ltr'} style={{ background:T.bg, minHeight:'100vh', paddingBottom:170, color:T.text, fontFamily:B, colorScheme:T.dark ? 'dark' : 'light' }}>
+    <div className="customer-menu" data-template={T.id} dir={isRTL ? 'rtl' : 'ltr'} style={{ background:T.bg, minHeight:'100vh', paddingBottom: allowOrdering ? 170 : 40, color:T.text, fontFamily:B, colorScheme:T.dark ? 'dark' : 'light' }}>
 
       {/* ── HERO ── */}
       <Hero T={T} accent={accent} rgb={rgb} profile={profile} initial={initial}
@@ -392,6 +393,18 @@ export default function Customer() {
           <Clock size={15} style={{ color:'#dc2626', flexShrink:0 }} />
           <span style={{ fontSize:13, fontWeight:700, color:T.text }}>
             {t('closed')} · {t('closedSub')}: {profile.hoursOpen}–{profile.hoursClose}
+          </span>
+        </div>
+      )}
+
+      {/* ── Sadece Menü Modu bandı ── */}
+      {!allowOrdering && (
+        <div style={{ margin:'12px 14px 0', display:'flex', alignItems:'center', gap:10,
+          background:`linear-gradient(90deg, rgba(${rgb},.12), rgba(${rgb},.04))`,
+          border:`1px solid rgba(${rgb},.25)`, borderRadius:14, padding:'10px 14px' }}>
+          <ChefHat size={15} style={{ color:accent, flexShrink:0 }} />
+          <span style={{ fontSize:13, fontWeight:700, color:T.text }}>
+            Menü Kataloğu · Siparişinizi lütfen servis personeline iletiniz
           </span>
         </div>
       )}
@@ -459,22 +472,24 @@ export default function Customer() {
       )}
 
       {/* ── Köşe butonları ── */}
-      <div style={{ position:'fixed', bottom:116, [isRTL?'left':'right']:14, zIndex:30, display:'flex', flexDirection:'column', gap:8 }}>
-        {[{ type:'waiter', icon:<BellRing size={14}/>, label:t('waiter') }, { type:'bill', icon:<ReceiptText size={14}/>, label:t('bill') }].map(b2 => (
-          <button key={b2.type} onClick={() => call(b2.type)} style={{
-            display:'flex', alignItems:'center', gap:8, background:T.fab, backdropFilter:'blur(16px)',
-            border:`1px solid ${T.fabBorder}`, borderRadius:999, padding:'9px 16px 9px 10px',
-            color:T.text, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:B,
-            boxShadow: T.dark ? 'none' : '0 4px 16px rgba(0,0,0,.1)',
-          }}>
-            <span style={{ width:28, height:28, borderRadius:'50%', background:`rgba(${rgb},.16)`, display:'flex', alignItems:'center', justifyContent:'center', color:accent }}>{b2.icon}</span>
-            {b2.label}
-          </button>
-        ))}
-      </div>
+      {allowOrdering && (
+        <div style={{ position:'fixed', bottom:116, [isRTL?'left':'right']:14, zIndex:30, display:'flex', flexDirection:'column', gap:8 }}>
+          {[{ type:'waiter', icon:<BellRing size={14}/>, label:t('waiter') }, { type:'bill', icon:<ReceiptText size={14}/>, label:t('bill') }].map(b2 => (
+            <button key={b2.type} onClick={() => call(b2.type)} style={{
+              display:'flex', alignItems:'center', gap:8, background:T.fab, backdropFilter:'blur(16px)',
+              border:`1px solid ${T.fabBorder}`, borderRadius:999, padding:'9px 16px 9px 10px',
+              color:T.text, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:B,
+              boxShadow: T.dark ? 'none' : '0 4px 16px rgba(0,0,0,.1)',
+            }}>
+              <span style={{ width:28, height:28, borderRadius:'50%', background:`rgba(${rgb},.16)`, display:'flex', alignItems:'center', justifyContent:'center', color:accent }}>{b2.icon}</span>
+              {b2.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── Sepet çubuğu ── */}
-      {cartCount > 0 && (
+      {allowOrdering && cartCount > 0 && (
         <div style={{ position:'fixed', insetInline:0, bottom:0, zIndex:30, padding:'12px 14px 28px', background:`linear-gradient(to top,${T.bgSolid} 65%,transparent)` }}>
           <button key={cartBump} data-cartbar="1" onClick={() => setCartOpen(true)} style={{
             width:'100%', maxWidth:560, margin:'0 auto', display:'flex', alignItems:'center', gap:12,
@@ -495,7 +510,7 @@ export default function Customer() {
         <Sheet onClose={() => setDetail(null)} title={trName(detail)} T={T} D={D}>
           <DetailContent product={detail} accent={accent} rgb={rgb} T={T} t={t} trDesc={trDesc}
             quickNotes={(categories.find(c=>c.id===detail.categoryId)?.notes)||DEFAULT_NOTES}
-            onAdd={addToCart} disabled={!open} />
+            onAdd={addToCart} disabled={!open} allowOrdering={allowOrdering} />
         </Sheet>
       )}
 
@@ -1466,7 +1481,7 @@ function ExecutiveRow({ p, idx, T, accent, t, trName, trDesc, badge, onOpen, onQ
         {trDesc(p) && <p style={{ margin:'5px 0 0', fontSize:13, lineHeight:1.4, color:T.textMuted, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{trDesc(p)}</p>}
         <div style={{ marginTop:9, fontFamily:T.fontDisplay, fontSize:15, fontWeight:600, color:T.text }}>{out ? t('soldout') : money(p.price)}</div>
       </div>
-      {!out && (
+      {!out && onQuickAdd && (
         <span onClick={(e) => { e.stopPropagation(); runWaiterToCart(e, accent, () => onQuickAdd(p)) }}
           style={{ flexShrink:0, width:40, height:40, border:'1px solid rgba(201,154,95,.5)', color:accent, fontSize:22, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
           <Plus size={18} />
@@ -1497,7 +1512,7 @@ function ScandiRow({ p, idx, T, accent, t, trName, trDesc, badge, onOpen, onQuic
       </div>
       <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:12, flexShrink:0 }}>
         <span style={{ fontFamily:T.fontAccent, fontSize:18, color:T.text }}>{out ? t('soldout') : money(p.price)}</span>
-        {!out && (
+        {!out && onQuickAdd && (
           <span onClick={(e) => { e.stopPropagation(); runWaiterToCart(e, accent, () => onQuickAdd(p)) }}
             style={{ width:34, height:34, borderRadius:'50%', border:`1px solid ${T.surfaceBorder}`, color:accent, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
             <Plus size={17} />
@@ -1540,7 +1555,7 @@ function ArchitecturalRow({ p, idx, T, accent, t, trName, trDesc, badge, onOpen,
         <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'flex-end', padding:'0 12px', fontFamily:T.fontAccent, fontSize:15, fontWeight:700, color:T.text }}>
           {out ? t('soldout') : money(p.price)}
         </div>
-        {!out && (
+        {!out && onQuickAdd && (
           <div onClick={(e) => { e.stopPropagation(); runWaiterToCart(e, accent, () => onQuickAdd(p)) }}
             style={{ borderTop:`1px solid ${T.divider}`, background:accent, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', height:34, cursor:'pointer' }}>
             <Plus size={17} />
@@ -1788,7 +1803,7 @@ function Sheet({ children, onClose, title, T, D }) {
 }
 
 /* ══════════ Ürün detayı — varyant + ekstra + not ══════════ */
-function DetailContent({ product, accent, rgb, T, t, trDesc, quickNotes, onAdd, disabled }) {
+function DetailContent({ product, accent, rgb, T, t, trDesc, quickNotes, onAdd, disabled, allowOrdering = true }) {
   const [qty, setQty]         = useState(1)
   const [note, setNote]       = useState('')
   const [variant, setVariant] = useState(null)
@@ -1864,39 +1879,53 @@ function DetailContent({ product, accent, rgb, T, t, trDesc, quickNotes, onAdd, 
         </div>
       )}
 
-      {/* Adet */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
-        <span style={{ color:T.textMuted, fontWeight:700, fontSize:13 }}>{t('qty')}</span>
-        <div style={{ display:'flex', alignItems:'center', gap:16 }}>
-          <button onClick={() => setQty(q => Math.max(1, q-1))} style={{ width:38, height:38, borderRadius:'50%', background:T.inputBg, border:`1px solid ${T.inputBorder}`, color:T.text, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}><Minus size={15}/></button>
-          <span style={{ color:T.text, fontWeight:900, fontSize:22, minWidth:24, textAlign:'center' }}>{qty}</span>
-          <button onClick={() => setQty(q => q+1)} style={{ width:38, height:38, borderRadius:'50%', background:accent, border:'none', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}><Plus size={15}/></button>
-        </div>
-      </div>
-
-      {/* Hızlı notlar */}
-      {quickNotes.length > 0 && (
-        <div style={{ marginBottom:16 }}>
-          <p style={{ color:T.textMuted, fontWeight:800, fontSize:12, textTransform:'uppercase', letterSpacing:.8, marginBottom:9 }}>{t('note')}</p>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:7, marginBottom:10 }}>
-            {quickNotes.map(n2 => (
-              <button key={n2} onClick={() => toggleNote(n2)} style={pill(activeNotes.includes(n2))}>{n2}</button>
-            ))}
+      {allowOrdering ? (
+        <>
+          {/* Adet */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+            <span style={{ color:T.textMuted, fontWeight:700, fontSize:13 }}>{t('qty')}</span>
+            <div style={{ display:'flex', alignItems:'center', gap:16 }}>
+              <button onClick={() => setQty(q => Math.max(1, q-1))} style={{ width:38, height:38, borderRadius:'50%', background:T.inputBg, border:`1px solid ${T.inputBorder}`, color:T.text, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}><Minus size={15}/></button>
+              <span style={{ color:T.text, fontWeight:900, fontSize:22, minWidth:24, textAlign:'center' }}>{qty}</span>
+              <button onClick={() => setQty(q => q+1)} style={{ width:38, height:38, borderRadius:'50%', background:accent, border:'none', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}><Plus size={15}/></button>
+            </div>
           </div>
-          <input value={note} onChange={e => setNote(e.target.value)} placeholder={t('notePlaceholder')}
-            style={{ width:'100%', padding:'12px 14px', borderRadius:12, fontSize:13, background:T.inputBg, border:`1px solid ${T.inputBorder}`, color:T.text, outline:'none' }} />
+
+          {/* Hızlı notlar */}
+          {quickNotes.length > 0 && (
+            <div style={{ marginBottom:16 }}>
+              <p style={{ color:T.textMuted, fontWeight:800, fontSize:12, textTransform:'uppercase', letterSpacing:.8, marginBottom:9 }}>{t('note')}</p>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:7, marginBottom:10 }}>
+                {quickNotes.map(n2 => (
+                  <button key={n2} onClick={() => toggleNote(n2)} style={pill(activeNotes.includes(n2))}>{n2}</button>
+                ))}
+              </div>
+              <input value={note} onChange={e => setNote(e.target.value)} placeholder={t('notePlaceholder')}
+                style={{ width:'100%', padding:'12px 14px', borderRadius:12, fontSize:13, background:T.inputBg, border:`1px solid ${T.inputBorder}`, color:T.text, outline:'none' }} />
+            </div>
+          )}
+
+          <button onClick={add} disabled={disabled} style={{
+            width:'100%', padding:'16px', borderRadius:16, border:'none',
+            background: disabled ? T.inputBg : `linear-gradient(135deg,${accent},rgba(${rgb},.72))`,
+            boxShadow: disabled ? 'none' : `0 8px 24px rgba(${rgb},.4)`,
+            color: disabled ? T.textFaint : '#fff', fontWeight:900, fontSize:16,
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            display:'flex', alignItems:'center', justifyContent:'center', gap:10 }}>
+            <Plus size={18} strokeWidth={3}/> {disabled ? t('closed') : `${t('add')} · ${money(unit * qty)}`}
+          </button>
+        </>
+      ) : (
+        <div style={{
+          marginTop: 20, padding: '16px', borderRadius: 16,
+          background: T.inputBg, border: `1px solid ${T.inputBorder}`,
+          color: T.textMuted, fontSize: 13, fontWeight: 700, textAlign: 'center',
+          lineHeight: 1.5
+        }}>
+          📖 Sadece Menü Modu<br />
+          <span style={{ fontSize: 12, fontWeight: 500, opacity: 0.85 }}>Siparişinizi lütfen servis personeline iletiniz.</span>
         </div>
       )}
-
-      <button onClick={add} disabled={disabled} style={{
-        width:'100%', padding:'16px', borderRadius:16, border:'none',
-        background: disabled ? T.inputBg : `linear-gradient(135deg,${accent},rgba(${rgb},.72))`,
-        boxShadow: disabled ? 'none' : `0 8px 24px rgba(${rgb},.4)`,
-        color: disabled ? T.textFaint : '#fff', fontWeight:900, fontSize:16,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        display:'flex', alignItems:'center', justifyContent:'center', gap:10 }}>
-        <Plus size={18} strokeWidth={3}/> {disabled ? t('closed') : `${t('add')} · ${money(unit * qty)}`}
-      </button>
     </>
   )
 }
