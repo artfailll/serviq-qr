@@ -62,9 +62,9 @@ export function clearStaffSession(bizId) {
 
 export function isRoleAllowed(userRole, requiredRole) {
   if (!requiredRole || requiredRole === 'waiter') return true
+  if (requiredRole === 'admin') return userRole === 'master'
   if (userRole === 'owner' || userRole === 'manager' || userRole === 'master') return true
   if (requiredRole === 'cashier') return userRole === 'cashier'
-  if (requiredRole === 'admin') return false
   return false
 }
 
@@ -191,10 +191,10 @@ export default function AdminLogin({ role = 'admin', onSuccess }) {
     const trimmed = input.trim()
 
     try {
-      // 1. Personel PIN eşleşmesi kontrolü
-      const matchingStaff = staffMembers.find((m) =>
+      // 1. Personel PIN eşleşmesi kontrolü (Yönetim ekranı SADECE Yönetim şifresiyle açılır)
+      const matchingStaff = role !== 'admin' ? staffMembers.find((m) =>
         m.active !== false && String(m.pin || '').trim() && String(m.pin || '').trim() === trimmed
-      )
+      ) : null
 
       if (matchingStaff) {
         if (!isRoleAllowed(matchingStaff.role, role)) {
@@ -315,13 +315,19 @@ export default function AdminLogin({ role = 'admin', onSuccess }) {
             </button>
           </div>
 
-          {staffMembers.some(m => m.active !== false && m.pin) && (
+          {role === 'admin' ? (
+            <div className="mt-4 pt-3 border-t border-ink-100 text-center">
+              <span className="text-[11px] text-ink-400">
+                Yönetim paneli için işletme şifrenizi girin.
+              </span>
+            </div>
+          ) : staffMembers.some(m => m.active !== false && m.pin) ? (
             <div className="mt-4 pt-3 border-t border-ink-100 text-center">
               <span className="text-[11px] text-ink-400">
                 Personel PIN kodunuz veya işletme şifrenizle giriş yapabilirsiniz.
               </span>
             </div>
-          )}
+          ) : null}
         </div>
 
         <p className="text-center text-xs text-ink-400 mt-4">
