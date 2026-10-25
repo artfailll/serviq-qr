@@ -161,10 +161,16 @@ test('QR-only missing tenant does not create or mutate anything', async () => {
 
 test('default profile allows ordering; catalog mode disables customer order', async () => {
   assert.equal(DEFAULT_PROFILE.orderingEnabled, true)
+  assert.equal(DEFAULT_PROFILE.portionsEnabled, true)
 
   const activeProfile = { ...DEFAULT_PROFILE, orderingEnabled: true }
   const catalogProfile = { ...DEFAULT_PROFILE, orderingEnabled: false }
 
   assert.equal(activeProfile.orderingEnabled !== false, true)
   assert.equal(catalogProfile.orderingEnabled !== false, false)
+
+  const portionsOn = { ...DEFAULT_PROFILE, portionsEnabled: true }
+  const portionsOff = { ...DEFAULT_PROFILE, portionsEnabled: false }
+  assert.equal(portionsOn.portionsEnabled !== false, true)
+  assert.equal(portionsOff.portionsEnabled !== false, false)
 })

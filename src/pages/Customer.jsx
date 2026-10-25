@@ -53,7 +53,7 @@ export default function Customer() {
 
   const categoryData = useValue(bizId ? `businesses/${bizId}/menu/categories` : null, undefined)
   const categories = useMemo(() => mapToList(categoryData, (a, b) => (a.order || 0) - (b.order || 0)), [categoryData])
-  const products   = useProducts(bizId)
+  const rawProducts = useProducts(bizId)
   const tables     = useTables(bizId)
   const profile    = useProfile(bizId)
   const stats      = useProductStats(bizId)
@@ -65,6 +65,14 @@ export default function Customer() {
   const accent = getAccent(profile, T)
   const rgb    = toRgb(accent)
   const allowOrdering = profile.orderingEnabled !== false
+  const portionsEnabled = profile.portionsEnabled !== false
+
+  const products = useMemo(() => {
+    if (portionsEnabled) {
+      return rawProducts.map(p2 => p2.portionsEnabled === false ? { ...p2, variants: [] } : p2)
+    }
+    return rawProducts.map(p2 => ({ ...p2, variants: [] }))
+  }, [rawProducts, portionsEnabled])
 
   // ── Google Font enjeksiyonu (şablona göre) ──
   useEffect(() => {

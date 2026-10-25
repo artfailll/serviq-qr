@@ -4,7 +4,7 @@ import { fileToCompressedDataURL, urlToCompressedDataURL } from '../../lib/image
 import {
   useCategories, useProducts,
   addProduct, updateProduct, removeProduct, toggleProduct,
-  addCategory, useBusinessId, useInventory, normalizeRecipe, INVENTORY_UNITS, useProfile,
+  addCategory, useBusinessId, useInventory, normalizeRecipe, INVENTORY_UNITS, useProfile, updateProfile,
 } from '../../lib/store'
 import { subscribe } from '../../lib/db'
 import { money } from '../../lib/format'
@@ -13,7 +13,7 @@ import { PRODUCT_TAGS, ALLERGENS } from '../../lib/seed'
 
 const empty = {
   name: '', desc: '', price: '', cost: '', image: '', categoryId: '', available: true, featured: false, tags: [],
-  gram: '', kalori: '', allergens: [], alkol: false, domuz: false, icerik: '', recipe: [],
+  gram: '', kalori: '', allergens: [], alkol: false, domuz: false, icerik: '', recipe: [], portionsEnabled: true,
 }
 
 const comboEmpty = { name: '', desc: '', price: '', categoryId: '', items: [] }
@@ -24,7 +24,13 @@ export default function MenuManager() {
   const products   = useProducts(bizId)
   const inventory  = useInventory(bizId)
   // Stok takibi kapalıysa reçete alanı hiç gösterilmez (İşletme Profili'nden açılır).
-  const stockOn    = useProfile(bizId).stockTracking !== false
+  const profile    = useProfile(bizId)
+  const stockOn    = profile.stockTracking !== false
+  const portionsEnabled = profile.portionsEnabled !== false
+
+  async function togglePortions() {
+    await updateProfile(bizId, { portionsEnabled: !portionsEnabled })
+  }
 
   const [editing, setEditing]   = useState(null)
   const [open, setOpen]         = useState(false)
@@ -242,12 +248,13 @@ export default function MenuManager() {
   }, [editing, inventory])
 
   function openNew() { setEditing({ ...empty, categoryId: categories[0]?.id || '' }); setOpen(true) }
-  function openEdit(p) { setEditing({ ...empty, ...p }); setOpen(true) }
+  function openEdit(p) { setEditing({ ...empty, ...p, portionsEnabled: p.portionsEnabled !== false }); setOpen(true) }
   function save() {
     if (!editing.name || !editing.categoryId) return
     // Boş varyant/ekstra/reçete satırlarını temizle
     const clean = {
       ...editing,
+      portionsEnabled: editing.portionsEnabled !== false,
       variants: (editing.variants || []).filter(v => v.name?.trim() && Number(v.price) > 0)
         .map(v => ({ name: v.name.trim(), price: Number(v.price) })),
       extras: (editing.extras || []).filter(e => e.name?.trim())
@@ -318,7 +325,22 @@ export default function MenuManager() {
     <div>
       {/* Üst bar */}
       <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
-        <p className="text-sm text-ink-500">{products.length} ürün · {categories.length} kategori</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <p className="text-sm text-ink-500">{products.length} ürün · {categories.length} kategori</p>
+          <button
+            type="button"
+            onClick={togglePortions}
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-sm ${
+              portionsEnabled
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+            }`}
+            title={portionsEnabled ? 'Menüde porsiyon seçenekleri açık. Tıklayarak kapatabilirsiniz.' : 'Menüde porsiyon seçenekleri kapalı. Tıklayarak açabilirsiniz.'}
+          >
+            <span className={`h-2.5 w-2.5 rounded-full ${portionsEnabled ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <span>Porsiyon Seçenekleri: <b>{portionsEnabled ? 'Açık' : 'Kapalı'}</b></span>
+          </button>
+        </div>
         <div className="flex items-center gap-2">
           {/* MENÜ TARA */}
           <button
@@ -360,6 +382,17 @@ export default function MenuManager() {
                   <div className="grow min-w-0">
                     <p className="font-semibold text-ink-900 truncate flex items-center gap-1.5">
                       {p.name}
+                      {p.variants?.length > 0 && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                          portionsEnabled && p.portionsEnabled !== false
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        }`}>
+                          {portionsEnabled && p.portionsEnabled !== false
+                            ? `${p.variants.length} Porsiyon`
+                            : 'Porsiyon Kapalı'}
+                        </span>
+                      )}
                       {isCombo && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">
                           <Tag className="h-2.5 w-2.5" /> Kampanya
@@ -472,7 +505,34 @@ export default function MenuManager() {
 
             {/* Porsiyon/varyant editörü */}
             <Field label="Porsiyonlar / boyutlar (isteğe bağlı)">
-              <p className="text-xs text-ink-400 -mt-1 mb-2">Küçük/Orta/Büyük gibi. Eklersen müşteri seçim yapar, fiyat ona göre hesaplanır.</p>
+              <div className="flex items-center justify-between gap-3 mb-2 -mt-1">
+                <p className="text-xs text-ink-400">
+                  Küçük/Orta/Büyük gibi. Eklerseniz müşteri seçim yapar, fiyat ona göre hesaplanır.
+                </p>
+                <label className="flex items-center gap-1.5 cursor-pointer shrink-0 bg-white px-2.5 py-1 rounded-lg border border-ink-200 shadow-sm">
+                  <input
+                    type="checkbox"
+                    checked={editing.portionsEnabled !== false}
+                    onChange={(e) => setEditing({ ...editing, portionsEnabled: e.target.checked })}
+                    className="h-3.5 w-3.5 accent-brand-500 rounded cursor-pointer"
+                  />
+                  <span className="text-[11px] font-bold text-ink-700">
+                    {editing.portionsEnabled !== false ? 'Aktif' : 'Kapalı'}
+                  </span>
+                </label>
+              </div>
+
+              {!portionsEnabled && (
+                <div className="mb-2 p-2 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800">
+                  ℹ️ <b>Menü genelinde porsiyonlar kapalı:</b> Porsiyonlar kayıtlı kalır; menüde görünmesi için menü üstündeki "Porsiyon Seçenekleri" düğmesini açabilirsiniz.
+                </div>
+              )}
+
+              {editing.portionsEnabled === false && (
+                <p className="mb-2 text-xs text-amber-700 bg-amber-50 p-2 rounded-xl border border-amber-200">
+                  ⚠️ Bu ürün için porsiyonlar kapatıldı. Menüde ana fiyat ({editing.price ? `${editing.price} ₺` : 'ana fiyat'}) geçerli olacaktır.
+                </p>
+              )}
               <div className="space-y-2">
                 {(editing.variants || []).map((v, i) => (
                   <div key={i} className="flex gap-2">

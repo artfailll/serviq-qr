@@ -125,6 +125,7 @@ export const DEFAULT_PROFILE = {
   hoursOpen: '09:00',
   hoursClose: '23:00',
   orderingEnabled: true,  // müşteri masadan sipariş verebilir mi (false ise sadece menü modu)
+  portionsEnabled: true,  // porsiyon seçenekleri aktif mi (false ise menüde porsiyon seçimi gizlenir)
   kitchenEnabled: true,   // mutfak takip adımı aktif mi
   googleReviewUrl: '',    // 5 yıldız → Google yönlendirme linki
   printAuto: false,       // yeni sipariş gelince mutfak adisyonunu otomatik yazdır
