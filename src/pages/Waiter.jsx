@@ -122,7 +122,7 @@ function WaiterPOS({ bizId, onLogout }) {
             {tables.length === 0 && <p className="col-span-full text-center text-ink-400 py-10">Masa yok. Yönetim panelinden masa ekleyin.</p>}
           </div>
         </div>
-        {sent && <Toast text="Sipariş mutfağa gönderildi!" />}
+        {sent && <Toast text="Sipariş kaydedildi!" />}
       </div>
     )
   }
@@ -259,7 +259,7 @@ function CartSheet({ cart, total, tableNo, onClose, changeQty, setNote, send, se
           {sendError && <p role="alert" className="text-red-700 mb-3">{sendError}</p>}
           {sending && <p role="status" className="mb-3">Sunucu onayı bekleniyor. Sayfayı kapatmayın.</p>}
           <button onClick={send} disabled={sending || !cart.length} className="btn-primary w-full !py-3.5 text-base">
-            <Send className="h-5 w-5" /> {sending ? 'Gönderiliyor…' : 'Mutfağa Gönder'}
+            <Send className="h-5 w-5" /> {sending ? 'Gönderiliyor…' : 'Siparişi Onayla'}
           </button>
         </div>
       </div>

@@ -98,10 +98,9 @@ function CashierBoard({ onLogout }) {
   const readyCount = orders.filter((o) => o.status === 'ready').length
   const activeColumns = hasKitchen ? COLUMNS : [
     { key: 'new', label: 'Yeni', accent: 'border-brand-400', dot: 'bg-brand-500' },
-    { key: 'ready', label: 'Hazır', accent: 'border-green-400', dot: 'bg-green-500' },
     { key: 'served', label: 'Servis Edildi · Ödeme Bekliyor', accent: 'border-sky-400', dot: 'bg-sky-500' },
   ]
-  const awaitingPay = orders.filter((o) => o.status === 'served').length
+  const awaitingPay = orders.filter((o) => o.status === 'served' || (!hasKitchen && (o.status === 'ready' || o.status === 'kitchen'))).length
 
   function enableSound() {
     primeAudio()
@@ -166,12 +165,10 @@ function CashierBoard({ onLogout }) {
           </div>
         </div>
 
-        <div className="mx-auto max-w-7xl px-4 pb-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          <Stat icon={ListChecks} label="Bekleyen" value={pendingCount} tone="brand" />
-          {hasKitchen ? (
+        <div className={`mx-auto max-w-7xl px-4 pb-3 grid gap-2.5 ${hasKitchen ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3'}`}>
+          <Stat icon={ListChecks} label="Bekleyen Sipariş" value={pendingCount} tone="brand" />
+          {hasKitchen && (
             <Stat icon={ChefHat} label="Hazırlanan" value={cookingCount} tone="amber" />
-          ) : (
-            <Stat icon={Check} label="Hazır" value={readyCount} tone="green" />
           )}
           <Stat icon={Wallet} label="Ödeme Bekleyen" value={awaitingPay} tone="sky" />
           <Stat icon={CircleDollarSign} label="Günlük Ciro" value={money(revenue)} tone="ink" />
@@ -197,9 +194,9 @@ function CashierBoard({ onLogout }) {
           </div>
         )}
 
-        <div className={`grid gap-4 ${hasKitchen ? 'lg:grid-cols-4 sm:grid-cols-2' : 'lg:grid-cols-3 sm:grid-cols-3'}`}>
+        <div className={`grid gap-4 ${hasKitchen ? 'lg:grid-cols-4 sm:grid-cols-2' : 'lg:grid-cols-2 sm:grid-cols-2'}`}>
           {activeColumns.map((col) => {
-            const items = active.filter((o) => o.status === col.key || (!hasKitchen && col.key === 'ready' && o.status === 'kitchen'))
+            const items = active.filter((o) => hasKitchen ? o.status === col.key : (col.key === 'new' ? o.status === 'new' : (o.status === 'served' || o.status === 'ready' || o.status === 'kitchen')))
             return (
               <section key={col.key} className="flex flex-col">
                 <div className="flex items-center gap-2 px-1 pb-2">
@@ -276,13 +273,13 @@ function CallBanner({ call, bizId }) {
 
 function OrderCard({ order, accent, bizId, profile, cashierId, hasKitchen }) {
   const mins = (Date.now() - (order.createdAt || 0)) / 60000
-  const overdue = order.status !== 'served' && mins >= OVERDUE_MIN
-  const isServed = order.status === 'served'
+  const isServed = order.status === 'served' || (!hasKitchen && (order.status === 'ready' || order.status === 'kitchen'))
+  const overdue = !isServed && mins >= OVERDUE_MIN
   const [payOpen, setPayOpen] = useState(false)
 
-  const nextTarget = hasKitchen ? NEXT[order.status] : (order.status === 'new' ? 'ready' : (order.status === 'ready' ? 'served' : null))
-  const prevTarget = hasKitchen ? PREV[order.status] : (order.status === 'ready' ? 'new' : (order.status === 'served' ? 'ready' : null))
-  const nextBtnLabel = hasKitchen ? NEXT_LABEL[order.status] : (order.status === 'new' ? 'Hazır' : (order.status === 'ready' ? 'Servis Et' : ''))
+  const nextTarget = hasKitchen ? NEXT[order.status] : (order.status === 'new' ? 'served' : null)
+  const prevTarget = hasKitchen ? PREV[order.status] : (isServed ? 'new' : null)
+  const nextBtnLabel = hasKitchen ? NEXT_LABEL[order.status] : (order.status === 'new' ? 'Servis Edildi' : '')
 
   return (
     <article
