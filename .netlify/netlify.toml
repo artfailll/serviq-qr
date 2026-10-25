@@ -1,15 +1,15 @@
-functionsDirectory = "C:\\Users\\yusuf han\\Desktop\\Yeni klasör ux\\qr-restoran\\netlify\\functions"
+functionsDirectory = "C:\\Users\\yunus emre\\Serviq\\serviq-qr\\netlify\\functions"
 functionsDirectoryOrigin = "config-v1"
 headersOrigin = "config"
 redirectsOrigin = "config"
 plugins = []
 
 [build]
-publish = "C:\\Users\\yusuf han\\Desktop\\Yeni klasör ux\\qr-restoran\\dist"
+publish = "C:\\Users\\yunus emre\\Serviq\\serviq-qr\\dist"
 publishOrigin = "config"
 commandOrigin = "config"
 command = "npm run build"
-functions = "C:\\Users\\yusuf han\\Desktop\\Yeni klasör ux\\qr-restoran\\netlify\\functions"
+functions = "C:\\Users\\yunus emre\\Serviq\\serviq-qr\\netlify\\functions"
 
 [build.environment]
 
@@ -68,6 +68,30 @@ Cache-Control = "public, max-age=0, must-revalidate"
 [[redirects]]
 from = "/"
 to = "/ana-sayfa.dc.html"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/ozellikler"
+to = "/ozellikler.dc.html"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/iletisim"
+to = "/iletisim.dc.html"
 status = 200.0
 force = true
 

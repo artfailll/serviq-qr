@@ -446,6 +446,25 @@ export default function Customer() {
             {categories.map(cat => (
               <section key={cat.id} data-cat-id={cat.id} style={{ scrollMarginTop:116, marginBottom:34 }}>
                 <SectionTitle T={T} D={D} accent={accent} count={`${(grouped[cat.id]||[]).filter(x=>x.available).length} ${t('items')}`}>{trCat(cat)}</SectionTitle>
+                {cat.desc && (
+                  <div style={{
+                    margin: '-4px 0 16px',
+                    padding: '10px 14px',
+                    borderRadius: 12,
+                    background: `rgba(${rgb},.08)`,
+                    border: `1px solid rgba(${rgb},.2)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: T.text,
+                    lineHeight: 1.4
+                  }}>
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>🍲</span>
+                    <span>{cat.desc}</span>
+                  </div>
+                )}
                 <div style={listStyle(T)}>
                   {(grouped[cat.id]||[]).map((p2, i) => <Card key={p2.id} p={p2} idx={i} {...cardProps} />)}
                 </div>
