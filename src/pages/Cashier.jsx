@@ -8,7 +8,6 @@ import {
   Check,
   ChefHat,
   Clock,
-  CircleDollarSign,
   ListChecks,
   ArrowRight,
   ArrowLeft,
@@ -36,7 +35,7 @@ import {
 } from '../lib/store'
 // StaffPicker kaldirildi
 import AdminLogin, { useRoleAuthState, clearStaffSession, getStaffSession } from './AdminLogin'
-import { money, clockMs, timeOfDay, isToday } from '../lib/format'
+import { money, clockMs, timeOfDay } from '../lib/format'
 import { EmptyState, DemoBadge } from '../components/ui'
 import PaymentModal from '../components/PaymentModal'
 import { playNewOrder, primeAudio, useSoundPref, setSoundPref } from '../lib/sound'
@@ -91,8 +90,6 @@ function CashierBoard({ onLogout }) {
 
   const hasKitchen = profile.kitchenEnabled !== false
   const active = orders.filter((o) => o.status !== 'paid' && o.status !== 'cancelled')
-  const paidToday = orders.filter((o) => o.status === 'paid' && isToday(o.createdAt))
-  const revenue = paidToday.reduce((s, o) => s + o.total, 0)
   const pendingCount = orders.filter((o) => o.status === 'new').length
   const cookingCount = orders.filter((o) => o.status === 'kitchen').length
   const readyCount = orders.filter((o) => o.status === 'ready').length
@@ -165,13 +162,12 @@ function CashierBoard({ onLogout }) {
           </div>
         </div>
 
-        <div className={`mx-auto max-w-7xl px-4 pb-3 grid gap-2.5 ${hasKitchen ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3'}`}>
+        <div className={`mx-auto max-w-7xl px-4 pb-3 grid gap-2.5 ${hasKitchen ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
           <Stat icon={ListChecks} label="Bekleyen Sipariş" value={pendingCount} tone="brand" />
           {hasKitchen && (
             <Stat icon={ChefHat} label="Hazırlanan" value={cookingCount} tone="amber" />
           )}
           <Stat icon={Wallet} label="Ödeme Bekleyen" value={awaitingPay} tone="sky" />
-          <Stat icon={CircleDollarSign} label="Günlük Ciro" value={money(revenue)} tone="ink" />
         </div>
       </header>
 
