@@ -20,7 +20,12 @@ export function printHTML(html) {
   doc.close()
   const go = () => {
     try { iframe.contentWindow.focus(); iframe.contentWindow.print() } catch {}
-    setTimeout(() => iframe.remove(), 1500)
+    try {
+      iframe.contentWindow.addEventListener('afterprint', () => {
+        setTimeout(() => { try { iframe.remove() } catch {} }, 1000)
+      })
+    } catch {}
+    setTimeout(() => { try { iframe.remove() } catch {} }, 60000)
   }
   // İçerik (fontlar) yüklensin diye kısa bekle
   if (iframe.contentWindow.document.readyState === 'complete') setTimeout(go, 250)

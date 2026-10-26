@@ -22,8 +22,8 @@ export default function StaffAlerts() {
   const seenCalls = useRef(null)
 
   useEffect(() => {
-    if (isStaff && 'Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {})
+    if (isStaff && typeof window !== 'undefined' && 'Notification' in window && window.Notification?.permission === 'default') {
+      window.Notification.requestPermission().catch(() => {})
     }
   }, [isStaff])
 
@@ -35,9 +35,9 @@ export default function StaffAlerts() {
     if (navigator.vibrate) navigator.vibrate(kind === 'call' ? [120, 60, 120, 60, 120] : [200])
     // Sekme arka plandaysa (başka sekme/pencerede) OS bildirimi göster —
     // uygulama içi toast yalnızca sekme görünürken fark edilir.
-    if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+    if (typeof document !== 'undefined' && document.hidden && typeof window !== 'undefined' && 'Notification' in window && window.Notification?.permission === 'granted') {
       try {
-        const n = new Notification('serviq', { body: text, tag: id, requireInteraction: false })
+        const n = new window.Notification('serviq', { body: text, tag: id, requireInteraction: false })
         n.onclick = () => { window.focus(); n.close() }
         setTimeout(() => n.close(), 15000)
       } catch {}

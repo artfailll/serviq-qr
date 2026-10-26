@@ -1,16 +1,19 @@
 // Küçük, yeniden kullanılabilir arayüz parçaları
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, UtensilsCrossed } from 'lucide-react'
 import { IS_DEMO } from '../lib/db'
 
-export function ProductImage({ src, alt, className = '' }) {
+export function ProductImage({ src, alt, className = '', style, ...rest }) {
   const [failed, setFailed] = useState(false)
+  useEffect(() => { setFailed(false) }, [src])
   if (!src || failed) {
     return (
       <div
         className={`flex items-center justify-center bg-gradient-to-br from-brand-100 to-brand-200 text-brand-500 ${className}`}
+        style={style}
         aria-hidden="true"
+        {...rest}
       >
         <UtensilsCrossed className="h-8 w-8 opacity-70" />
       </div>
@@ -23,6 +26,8 @@ export function ProductImage({ src, alt, className = '' }) {
       loading="lazy"
       onError={() => setFailed(true)}
       className={className}
+      style={style}
+      {...rest}
     />
   )
 }

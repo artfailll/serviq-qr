@@ -1,3 +1,9 @@
+function safeUUID() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return safeUUID()
+  }
+  return 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 11)
+}
 import { useRef, useState } from 'react'
 import { getLoyaltyRules } from '../../lib/loyalty'
 import { useProfile, useCustomers, useActiveStaff, redeemLoyaltyReward } from '../../lib/store'

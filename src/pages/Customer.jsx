@@ -59,8 +59,9 @@ export default function Customer() {
   const stats      = useProductStats(bizId)
   const allOrders  = useOrders(bizId)
 
-  const tableMeta = tables.find(x => String(x.no) === String(masaNo))
+  const tableMeta = tables.find(x => String(x.no) === String(masaNo) || x.id === masaNo || x.id === `masa${masaNo}` || (x.name && String(x.name).toLowerCase() === String(masaNo).toLowerCase()))
   const tableId = tableMeta?.id || null
+  const numericTableNo = tableMeta?.no ?? (Number.isInteger(Number(masaNo)) && Number(masaNo) > 0 ? Number(masaNo) : null)
   const T      = getTemplate(profile)
   const accent = getAccent(profile, T)
   const rgb    = toRgb(accent)
@@ -276,7 +277,7 @@ export default function Customer() {
     setSending(true)
     setOrderError('')
     try {
-    const id = await createOrder(bizId, { tableId, tableNo: Number(masaNo)||null,
+    const id = await createOrder(bizId, { tableId, tableNo: numericTableNo,
       items: cart.map(i => ({ productId:i.productId, name:i.name, price:i.price, qty:i.qty, note:i.note||'' })), customer: loyalty.enabled && customerInfo.consent ? customerInfo : null })
     if (id) {
       const next = [id, ...myIds].slice(0, 5)
@@ -301,7 +302,7 @@ export default function Customer() {
     }
     callPending.current = true
     try {
-    await createCall(bizId, { tableId, tableNo: Number(masaNo)||null, type })
+    await createCall(bizId, { tableId, tableNo: numericTableNo, type })
     const next = { ...lastCallAt, [type]: now2 }
     setLastCallAt(next)
     try { localStorage.setItem(CALL_KEY(bizId, tableId || masaNo), JSON.stringify(next)) } catch {}

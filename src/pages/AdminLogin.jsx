@@ -7,6 +7,16 @@ import { IS_DEMO } from '../lib/db'
 const SESSION_KEY = 'sofra_admin_auth'
 const VERIFY_URL = '/.netlify/functions/verify-admin'
 
+// Cross-device safe timeout signal for older iOS/Safari/Android POS devices
+function safeTimeoutSignal(ms) {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms)
+  }
+  const controller = new AbortController()
+  setTimeout(() => controller.abort(), ms)
+  return controller.signal
+}
+
 const probeCache = new Map()
 function probeServer(bizId) {
   if (!probeCache.has(bizId)) {
@@ -14,7 +24,7 @@ function probeServer(bizId) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bizId, pin: '' }),
-      signal: AbortSignal.timeout(10000),
+      signal: safeTimeoutSignal(10000),
     }).then((r) => { if (!r.ok) throw new Error('Sunucuya erişilemiyor'); return r.json() }).then((d) => {
       if (typeof d.configured !== 'boolean') throw new Error('Geçersiz doğrulama yanıtı')
       return d.configured
@@ -28,7 +38,7 @@ export async function verifyAdminPin(bizId, pin) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ bizId, pin }),
-    signal: AbortSignal.timeout(10000),
+    signal: safeTimeoutSignal(10000),
   })
   if (!r.ok) throw new Error('Giriş sunucusuna erişilemiyor.')
   return r.json()
