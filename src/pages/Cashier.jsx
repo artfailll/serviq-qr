@@ -328,33 +328,29 @@ function OrderCard({ order, accent, bizId, profile, cashierId, hasKitchen }) {
               <ArrowLeft className="h-4 w-4" />
             </button>
           )}
-          {hasKitchen && (
-            <button
-              onClick={() => printKitchenSlip(order, profile)}
-              className="btn-ghost !py-1.5 !px-2.5"
-              title="Mutfak adisyonu yazdır"
-            >
-              <Printer className="h-4 w-4" />
-            </button>
-          )}
+          <button
+            onClick={() => printBill(order, profile)}
+            className="btn-outline !py-2 !px-3 font-bold flex items-center gap-1.5 text-ink-800"
+            title="Hesap / Adisyon fişi yazdır"
+          >
+            <ReceiptText className="h-4 w-4 text-brand-600" />
+            Fiş
+          </button>
+          <button
+            onClick={() => printKitchenSlip(order, profile)}
+            className="btn-ghost !py-2 !px-2.5 text-ink-500 hover:text-ink-800"
+            title="Sipariş / Mutfak fişi yazdır"
+          >
+            <Printer className="h-4 w-4" />
+          </button>
           {isServed ? (
-            <>
-              <button
-                onClick={() => printBill(order, profile)}
-                className="btn-outline !py-2 !px-3"
-                title="Hesap fişi yazdır"
-              >
-                <ReceiptText className="h-4 w-4" />
-                Fiş
-              </button>
-              <button
-                onClick={() => setPayOpen(true)}
-                className="btn !py-2 bg-green-600 text-white hover:bg-green-700"
-              >
-                <Wallet className="h-4 w-4" />
-                Hesabı Kapat
-              </button>
-            </>
+            <button
+              onClick={() => setPayOpen(true)}
+              className="btn !py-2 bg-green-600 text-white hover:bg-green-700"
+            >
+              <Wallet className="h-4 w-4" />
+              Hesabı Kapat
+            </button>
           ) : (
             nextTarget && (
               <button
