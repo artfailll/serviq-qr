@@ -58,7 +58,7 @@ export function kitchenSlipHTML(order, profile) {
       ${it.note ? `<div class="note">&gt;&gt; ${esc(it.note)}</div>` : ''}
     </div>`).join('')
   const body = `
-    <div class="c b lg">*** MUTFAK ***</div>
+    <div class="c b lg">*** ${profile?.kitchenEnabled === false ? 'SİPARİŞ ADİSYONU' : 'MUTFAK'} ***</div>
     <div class="c huge">MASA ${esc(order.tableNo ?? '?')}</div>
     <div class="c muted">${esc(timeOfDay(order.createdAt) || timeOfDay(Date.now()))}</div>
     <hr class="hr2"/>

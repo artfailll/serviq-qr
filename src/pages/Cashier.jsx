@@ -81,7 +81,7 @@ function CashierBoard({ onLogout }) {
   useEffect(() => {
     const ids = new Set(orders.map((o) => o.id))
     if (seenPrint.current === null) { seenPrint.current = ids; return }
-    if (profile.kitchenEnabled !== false && profile.printAuto) {
+    if (profile.printAuto) {
       orders.filter((o) => !seenPrint.current.has(o.id) && o.status === 'new')
         .forEach((o) => printKitchenSlip(o, profile))
     }
