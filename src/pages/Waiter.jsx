@@ -9,7 +9,7 @@ import {
 } from '../lib/store'
 // StaffPicker kaldirildi
 import { money } from '../lib/format'
-import { printKitchenSlip, printBill, printTableBill } from '../lib/receipt'
+import { printTableBill } from '../lib/receipt'
 import AdminLogin, { useRoleAuthState, clearStaffSession, getStaffSession } from './AdminLogin'
 
 export default function Waiter() {
@@ -104,10 +104,11 @@ function WaiterPOS({ bizId, onLogout }) {
     showToast(`${itemName} eklendi`)
   }
 
-    function handlePrintTableAdisyon(tbl, tblOrders) {
+  function handlePrintTableAdisyon(tbl, tblOrders) {
     if (!tblOrders?.length) return
-    // 1. Firebase üzerinden Kasa yazıcısına sessiz/sorusuz ilet
-    tblOrders.forEach((o) => requestPrint(bizId, o.id, 'bill'))
+    // 1. Firebase üzerinden Kasa yazıcısına masanın adisyonunu ilet (en son açık sipariş üzerinden)
+    const targetOrder = tblOrders[tblOrders.length - 1]
+    requestPrint(bizId, targetOrder.id, 'bill')
     // 2. Cihaz yerel yazıcıya bağlıysa doğrudan bas
     try {
       printTableBill(tbl.no, tblOrders, profile)
@@ -133,7 +134,7 @@ function WaiterPOS({ bizId, onLogout }) {
     setCart((prev) => { const c = [...prev]; c[i] = { ...c[i], note }; return c })
   }
 
-  async function send(withPrint = false) {
+  async function send() {
     if (sendingRef.current || !cart.length || !table) return
     sendingRef.current = true
     setSending(true)
@@ -144,19 +145,12 @@ function WaiterPOS({ bizId, onLogout }) {
         tableNo: table.no,
         items: cart.map((i) => ({ productId: i.productId, name: i.name, price: i.price, qty: i.qty, note: i.note || '' })),
         staffId,
-        printRequested: withPrint,
-        printType: 'kitchen',
       }
       await createOrder(bizId, orderData)
-      if (withPrint) {
-        try {
-          printKitchenSlip({ ...orderData, createdAt: Date.now() }, profile)
-        } catch {}
-      }
       setCart([])
       setCartOpen(false)
       setSent(true)
-      showToast(withPrint ? 'Sipariş kaydedildi ve fiş yazıcıya iletildi!' : 'Sipariş mutfağa gönderildi!')
+      showToast('Sipariş başarıyla kaydedildi!')
       setTimeout(() => setSent(false), 1800)
     } catch (error) {
       setSendError(error.message || 'Sipariş kaydedilemedi. Sepet korunuyor.')
@@ -510,27 +504,15 @@ function CartSheet({ cart, total, tableNo, onClose, changeQty, setNote, send, se
           </div>
           {sendError && <p role="alert" className="text-red-700 mb-3">{sendError}</p>}
           {sending && <p role="status" className="mb-3">Sunucu onayı bekleniyor. Sayfayı kapatmayın.</p>}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => send(true)}
-              disabled={sending || !cart.length}
-              className="btn-outline !py-3 font-bold text-xs flex items-center justify-center gap-1.5 bg-amber-50 border-2 border-amber-400 text-amber-900 hover:bg-amber-100 active:scale-98 transition-all"
-              title="Siparişi kaydeder ve termal yazıcıdan fişi soru sormadan basar"
-            >
-              <Printer className="h-4 w-4 text-amber-700" />
-              <span>Fiş Yazdır & Gönder</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => send(false)}
-              disabled={sending || !cart.length}
-              className="btn-primary !py-3 font-bold text-sm flex items-center justify-center gap-1.5 shadow-md active:scale-98 transition-all"
-            >
-              <Send className="h-4 w-4" />
-              <span>{sending ? 'Gönderiliyor…' : 'Siparişi Onayla'}</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => send()}
+            disabled={sending || !cart.length}
+            className="btn-primary w-full !py-3.5 font-bold text-base flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all"
+          >
+            <Send className="h-5 w-5" />
+            <span>{sending ? 'Gönderiliyor…' : 'Siparişi Onayla'}</span>
+          </button>
         </div>
       </div>
     </div>

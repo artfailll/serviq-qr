@@ -432,7 +432,7 @@ export function requestPrint(bizId, orderId, printType = 'bill') {
   })
 }
 
-export async function createOrder(bizId, { tableId, tableNo, items, note, customer, staffId, printRequested = false, printType = 'kitchen' }) {
+export async function createOrder(bizId, { tableId, tableNo, items, note, customer, staffId, printRequested = false, printType = 'bill' }) {
   if (!bizId || !tableId || !Number.isInteger(tableNo) || tableNo < 1) throw new Error('Masa tanımlı değil. Masadaki QR kodu tekrar okutun.')
   if (!items?.length || items.some(it => !it.productId || !Number.isFinite(it.price) || it.price < 0 || !Number.isInteger(it.qty) || it.qty < 1)) throw new Error('Sepet bilgileri geçersiz. Ürünleri kontrol edin.')
   const total = Math.round(items.reduce((s, it) => s + it.price * it.qty, 0) * 100) / 100

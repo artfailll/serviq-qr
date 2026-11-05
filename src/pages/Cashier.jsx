@@ -39,7 +39,7 @@ import { money, clockMs, timeOfDay } from '../lib/format'
 import { EmptyState, DemoBadge } from '../components/ui'
 import PaymentModal from '../components/PaymentModal'
 import { playNewOrder, primeAudio, useSoundPref, setSoundPref } from '../lib/sound'
-import { printKitchenSlip, printBill } from '../lib/receipt'
+import { printKitchenSlip, printBill, printTableBill } from '../lib/receipt'
 
 const COLUMNS = [
   { key: 'new', label: 'Yeni', accent: 'border-brand-400', dot: 'bg-brand-500' },
@@ -75,21 +75,20 @@ function CashierBoard({ onLogout }) {
   const { staffId: cashierId } = useActiveStaff(bizId)
   useTicker(1000)
 
-  // Otomatik adisyon: yeni sipariş gelince mutfak fişini yazdır (ayar açıksa).
-  // Sessiz basmak için Chrome'u "kiosk printing" modunda açmak gerekir.
-  // Otomatik adisyon: yeni sipariş gelince mutfak fişini yazdır (ayar açıksa veya garsondan geldiyse).
-  // Sessiz basmak için Chrome'u "kiosk printing" modunda açmak gerekir.
+  // Sadece sistem ayarlarında "printAuto" AÇIK ise yeni siparişte mutfak fişi basılır.
+  // Varsayılan olarak kapalıdır; mutfak fişi basılmaz.
   const seenPrint = useRef(null)
   useEffect(() => {
     const ids = new Set(orders.map((o) => o.id))
     if (seenPrint.current === null) { seenPrint.current = ids; return }
-    const autoForWaiter = profile?.printOnWaiterOrder !== false
-    orders.filter((o) => !seenPrint.current.has(o.id) && o.status === 'new' && (profile?.printAuto || (autoForWaiter && o.staffId)))
-      .forEach((o) => printKitchenSlip(o, profile))
+    if (profile?.printAuto === true) {
+      orders.filter((o) => !seenPrint.current.has(o.id) && o.status === 'new')
+        .forEach((o) => printKitchenSlip(o, profile))
+    }
     seenPrint.current = ids
   }, [orders, profile])
 
-  // Garson veya kasa tarafından belirli bir sipariş/hesap için yazdırma talep edildiğinde otomatik bas
+  // Garson veya kasadan Fiş / Adisyon Yazdır butonuna basıldığında tetiklenen yazdırma kuyruğu
   const printedReqs = useRef(new Set())
   useEffect(() => {
     orders.forEach((o) => {
@@ -97,8 +96,10 @@ function CashierBoard({ onLogout }) {
         const key = `${o.id}_${o.printRequestedAt}`
         if (!printedReqs.current.has(key)) {
           printedReqs.current.add(key)
-          if (o.printType === 'kitchen') {
-            printKitchenSlip(o, profile)
+          // Masanın tüm açık siparişlerini toplayıp müşteri adisyonunu / hesap fişini bas (mutfak fişi basılmaz)
+          const tableOrders = orders.filter((x) => (x.tableId === o.tableId || String(x.tableNo) === String(o.tableNo)) && x.status !== 'paid' && x.status !== 'cancelled')
+          if (tableOrders.length > 0) {
+            printTableBill(o.tableNo, tableOrders, profile)
           } else {
             printBill(o, profile)
           }
@@ -349,18 +350,11 @@ function OrderCard({ order, accent, bizId, profile, cashierId, hasKitchen }) {
           )}
           <button
             onClick={() => printBill(order, profile)}
-            className="btn-outline !py-2 !px-3 font-bold flex items-center gap-1.5 text-ink-800"
-            title="Hesap / Adisyon fişi yazdır"
+            className="btn-outline !py-2 !px-3 font-bold flex items-center gap-1.5 text-ink-800 hover:bg-ink-50 shadow-xs"
+            title="Adisyon / Hesap fişi yazdır"
           >
-            <ReceiptText className="h-4 w-4 text-brand-600" />
-            Fiş
-          </button>
-          <button
-            onClick={() => printKitchenSlip(order, profile)}
-            className="btn-ghost !py-2 !px-2.5 text-ink-500 hover:text-ink-800"
-            title="Sipariş / Mutfak fişi yazdır"
-          >
-            <Printer className="h-4 w-4" />
+            <Printer className="h-4 w-4 text-brand-600" />
+            Fiş Yazdır
           </button>
           {isServed ? (
             <button
