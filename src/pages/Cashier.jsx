@@ -75,12 +75,19 @@ function CashierBoard({ onLogout }) {
   const { staffId: cashierId } = useActiveStaff(bizId)
   useTicker(1000)
 
+  const cashierMountedAt = useRef(Date.now())
+
   // Sadece sistem ayarlarında "printAuto" AÇIK ise yeni siparişte mutfak fişi basılır.
   // Varsayılan olarak kapalıdır; mutfak fişi basılmaz.
   const seenPrint = useRef(null)
+  const isInitialSeenPrint = useRef(true)
   useEffect(() => {
     const ids = new Set(orders.map((o) => o.id))
-    if (seenPrint.current === null) { seenPrint.current = ids; return }
+    if (isInitialSeenPrint.current) {
+      seenPrint.current = ids
+      if (orders.length > 0) isInitialSeenPrint.current = false
+      return
+    }
     if (profile?.printAuto === true) {
       orders.filter((o) => !seenPrint.current.has(o.id) && o.status === 'new')
         .forEach((o) => printKitchenSlip(o, profile))
@@ -90,19 +97,43 @@ function CashierBoard({ onLogout }) {
 
   // Garson veya kasadan Fiş / Adisyon Yazdır butonuna basıldığında tetiklenen yazdırma kuyruğu
   const printedReqs = useRef(new Set())
+  const isInitialPrintLoad = useRef(true)
   useEffect(() => {
+    // 1. İlk yüklemede veritabanındaki tüm eski istekleri işaretle, ASLA geçmiş siparişleri tekrar yazdırma
+    if (isInitialPrintLoad.current) {
+      orders.forEach((o) => {
+        if (o.printRequestedAt) {
+          printedReqs.current.add(`${o.id}_${o.printRequestedAt}`)
+        }
+      })
+      if (orders.length > 0) {
+        isInitialPrintLoad.current = false
+      }
+      return
+    }
+
+    // 2. Yalnızca sayfa açıkken gelen ve iptal/ödenmiş OLMAYAN canlı yazdırma taleplerini bas
     orders.forEach((o) => {
       if (o.printRequestedAt) {
         const key = `${o.id}_${o.printRequestedAt}`
-        if (!printedReqs.current.has(key)) {
+        const isFresh = o.printRequestedAt >= cashierMountedAt.current - 10000
+        const isNotPrinted = !printedReqs.current.has(key)
+        const isActiveOrder = o.status !== 'paid' && o.status !== 'cancelled'
+
+        if (isNotPrinted && isFresh && isActiveOrder) {
           printedReqs.current.add(key)
           // Masanın tüm açık siparişlerini toplayıp müşteri adisyonunu / hesap fişini bas (mutfak fişi basılmaz)
-          const tableOrders = orders.filter((x) => (x.tableId === o.tableId || String(x.tableNo) === String(o.tableNo)) && x.status !== 'paid' && x.status !== 'cancelled')
+          const tableOrders = orders.filter((x) =>
+            (x.tableId === o.tableId || String(x.tableNo) === String(o.tableNo)) &&
+            x.status !== 'paid' && x.status !== 'cancelled'
+          )
           if (tableOrders.length > 0) {
             printTableBill(o.tableNo, tableOrders, profile)
           } else {
             printBill(o, profile)
           }
+        } else {
+          printedReqs.current.add(key)
         }
       }
     })
