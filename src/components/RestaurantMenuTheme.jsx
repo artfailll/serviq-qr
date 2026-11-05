@@ -69,21 +69,21 @@ export function RestaurantCard({ p, idx, T, t, trName, trDesc, onOpen, badge, ac
         ) : (
           <span className="food-card-placeholder"><UtensilsCrossed size={32}/></span>
         )}
-        {(b.chef || b.combo || b.best) && (
+        {(b.chef || b.best || b.combo) && (
           <span className="food-card-badges">
             {b.chef && (
               <span className="food-card-badge food-card-badge--chef">
                 <ChefHat size={11} strokeWidth={2.5}/> {chefLabel}
               </span>
             )}
+            {b.best && (
+              <span className="food-card-badge food-card-badge--best">
+                <Flame size={11} strokeWidth={2.5}/> {bestLabel}
+              </span>
+            )}
             {b.combo && (
               <span className="food-card-badge food-card-badge--combo">
                 <Tag size={10} strokeWidth={2.5}/> {comboLabel}
-              </span>
-            )}
-            {b.best && !b.chef && (
-              <span className="food-card-badge food-card-badge--best">
-                <Flame size={10} strokeWidth={2.5}/> {bestLabel}
               </span>
             )}
           </span>
@@ -99,6 +99,11 @@ export function RestaurantCard({ p, idx, T, t, trName, trDesc, onOpen, badge, ac
           {b.chef && (
             <span className="food-card-inline-chef" title={chefLabel}>
               <ChefHat size={11} strokeWidth={2.5} style={{ verticalAlign: '-1px' }} /> {chefLabel}
+            </span>
+          )}
+          {b.best && (
+            <span className="food-card-inline-best" title={bestLabel}>
+              <Flame size={11} strokeWidth={2.5} style={{ verticalAlign: '-1px' }} /> {bestLabel}
             </span>
           )}
         </span>

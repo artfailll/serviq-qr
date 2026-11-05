@@ -7,7 +7,7 @@ import {
   MapPin, Phone, Instagram, Tag,
 } from 'lucide-react'
 import {
-  useValue, useProducts, useTables, useProductStats,
+  useValue, useProducts, useTables, useProductStats, computeOrderCounts, computeBestIds,
   createOrder, createCall, saveFeedback, useBusinessId, useProfile, useOrders,
 } from '../lib/store'
 import { subscribe, setValue, mapToList } from '../lib/db'
@@ -182,11 +182,9 @@ export default function Customer() {
 
   const featured = useMemo(() => products.filter(p2 => p2.featured && p2.available), [products])
 
-  // Çok Satan: satış istatistiğinden ilk 3 (en az 3 satış)
-  const bestIds = useMemo(() => {
-    return Object.entries(stats).filter(([, c]) => c >= 3)
-      .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => id)
-  }, [stats])
+  // Otomatik Çok Satanlar: sistemdeki tüm siparişler ve istatistiklerle hesaplanır
+  const productOrderCounts = useMemo(() => computeOrderCounts(allOrders, stats), [allOrders, stats])
+  const bestIds = useMemo(() => computeBestIds(productOrderCounts, categories, products), [productOrderCounts, categories, products])
 
   const searchResults = useMemo(() => {
     const normalize = value => (value || '').toLocaleLowerCase(lang === 'tr' ? 'tr-TR' : lang)
@@ -538,7 +536,7 @@ export default function Customer() {
         <Sheet onClose={() => setDetail(null)} title={trName(detail)} T={T} D={D}>
           <DetailContent product={detail} accent={accent} rgb={rgb} T={T} t={t} trDesc={trDesc}
             quickNotes={(categories.find(c=>c.id===detail.categoryId)?.notes)||DEFAULT_NOTES}
-            onAdd={addToCart} disabled={!open} allowOrdering={allowOrdering} />
+            onAdd={addToCart} disabled={!open} allowOrdering={allowOrdering} isBest={bestIds.includes(detail.id)} />
         </Sheet>
       )}
 
@@ -1831,7 +1829,7 @@ function Sheet({ children, onClose, title, T, D }) {
 }
 
 /* ══════════ Ürün detayı — varyant + ekstra + not ══════════ */
-function DetailContent({ product, accent, rgb, T, t, trDesc, quickNotes, onAdd, disabled, allowOrdering = true }) {
+function DetailContent({ product, accent, rgb, T, t, trDesc, quickNotes, onAdd, disabled, allowOrdering = true, isBest = false }) {
   const [qty, setQty]         = useState(1)
   const [note, setNote]       = useState('')
   const [variant, setVariant] = useState(null)
@@ -1876,6 +1874,11 @@ function DetailContent({ product, accent, rgb, T, t, trDesc, quickNotes, onAdd, 
           {product.chef && (
             <div data-testid="DetailContent-ChefBadge" style={{ position:'absolute', top:12, left:12, background:'linear-gradient(135deg,#7c3aed,#9333ea)', color:'#fff', padding:'4px 10px', borderRadius:999, fontSize:11, fontWeight:800, display:'flex', alignItems:'center', gap:5, boxShadow:'0 2px 10px rgba(0,0,0,0.3)' }}>
               <span>👨‍🍳</span><span>{t('chef')}</span>
+            </div>
+          )}
+          {isBest && (
+            <div data-testid="DetailContent-BestBadge" style={{ position:'absolute', top: product.chef ? 44 : 12, left:12, background:'linear-gradient(135deg,#dc2626,#ef4444)', color:'#fff', padding:'4px 10px', borderRadius:999, fontSize:11, fontWeight:800, display:'flex', alignItems:'center', gap:5, boxShadow:'0 2px 10px rgba(0,0,0,0.3)' }}>
+              <Flame size={12} strokeWidth={2.5}/><span>{t('bestseller')}</span>
             </div>
           )}
         </div>

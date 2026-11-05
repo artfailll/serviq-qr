@@ -19,10 +19,8 @@ export default function StaffAlerts() {
   const soundOn = useSoundPref()
   const [toasts, setToasts] = useState([])
   const mountedAt = useRef(Date.now())
-  const seenOrders = useRef(null)
-  const isFirstOrders = useRef(true)
-  const seenCalls = useRef(null)
-  const isFirstCalls = useRef(true)
+  const seenOrders = useRef(new Set())
+  const seenCalls = useRef(new Set())
 
   useEffect(() => {
     if (isStaff && typeof window !== 'undefined' && 'Notification' in window && window.Notification?.permission === 'default') {
@@ -33,7 +31,7 @@ export default function StaffAlerts() {
   function fire(kind, text) {
     if (soundOn) (kind === 'call' ? playCall() : playNewOrder())
     const id = Math.random().toString(36).slice(2)
-    // En fazla 3 bildirim göstererek ekranda yığılmayı engelle
+    // En fazla 3 bildirim göstererek ekranda yığılmayı kesinlikle engelle
     setToasts((t) => [...t.slice(-2), { id, kind, text }])
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), TOAST_MS)
     if (navigator.vibrate) navigator.vibrate(kind === 'call' ? [120, 60, 120, 60, 120] : [200])
@@ -50,40 +48,38 @@ export default function StaffAlerts() {
 
   useEffect(() => {
     if (!isStaff) return
-    const ids = new Set(orders.map((o) => o.id))
-    // İlk yüklemede mevcut siparişleri hafızaya al, ASLA eski siparişler için bildirim patlatma
-    if (isFirstOrders.current) {
-      seenOrders.current = ids
-      if (orders.length > 0) isFirstOrders.current = false
+    const isWarmingUp = Date.now() - mountedAt.current < 2500
+    if (isWarmingUp) {
+      orders.forEach((o) => seenOrders.current.add(o.id))
       return
     }
-    // Sadece gerçekten yeni gelen, ödenmemiş/iptal edilmemiş ve sayfa açılışından sonraki siparişleri bildir
+    // Sadece sayfa açıkken YENİ gelen, ödenmemiş/iptal edilmemiş ve sayfa açılışından SONRA oluşturulmuş siparişler
     const newOnes = orders.filter((o) =>
       !seenOrders.current.has(o.id) &&
       o.status === 'new' &&
-      (o.createdAt ? o.createdAt >= mountedAt.current - 10000 : true)
+      typeof o.createdAt === 'number' &&
+      o.createdAt > mountedAt.current
     )
-    seenOrders.current = ids
+    orders.forEach((o) => seenOrders.current.add(o.id))
     newOnes.forEach((o) => fire('order', `Yeni sipariş · Masa ${o.tableNo ?? '?'}`))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orders, isStaff])
 
   useEffect(() => {
     if (!isStaff) return
-    const ids = new Set(calls.map((c) => c.id))
-    // İlk yüklemede mevcut çağrıları hafızaya al
-    if (isFirstCalls.current) {
-      seenCalls.current = ids
-      if (calls.length > 0) isFirstCalls.current = false
+    const isWarmingUp = Date.now() - mountedAt.current < 2500
+    if (isWarmingUp) {
+      calls.forEach((c) => seenCalls.current.add(c.id))
       return
     }
-    // Sadece çözülmemiş ve canlı yeni çağrıları bildir
+    // Sadece sayfa açıkken YENİ gelen ve sayfa açılışından SONRA oluşturulmuş çağrılar
     const newOnes = calls.filter((c) =>
       !seenCalls.current.has(c.id) &&
       c.status !== 'resolved' &&
-      (c.createdAt ? c.createdAt >= mountedAt.current - 10000 : true)
+      typeof c.createdAt === 'number' &&
+      c.createdAt > mountedAt.current
     )
-    seenCalls.current = ids
+    calls.forEach((c) => seenCalls.current.add(c.id))
     newOnes.forEach((c) =>
       fire('call', c.type === 'waiter' ? `Garson çağrısı · Masa ${c.tableNo ?? '?'}` : `Hesap isteniyor · Masa ${c.tableNo ?? '?'}`)
     )

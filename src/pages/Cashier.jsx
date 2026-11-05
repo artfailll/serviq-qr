@@ -77,46 +77,43 @@ function CashierBoard({ onLogout }) {
 
   const cashierMountedAt = useRef(Date.now())
 
-  // Sadece sistem ayarlarında "printAuto" AÇIK ise yeni siparişte mutfak fişi basılır.
-  // Varsayılan olarak kapalıdır; mutfak fişi basılmaz.
-  const seenPrint = useRef(null)
-  const isInitialSeenPrint = useRef(true)
+  // Sadece sistem ayarlarında "printAuto" AÇIK ise ve sayfa açıkken YENİ gelen siparişte mutfak fişi basılır.
+  // İlk 2.5 saniye boyunca veya sayfa açılmadan önceki siparişler için ASLA fiş basılmaz.
+  const seenPrint = useRef(new Set())
   useEffect(() => {
-    const ids = new Set(orders.map((o) => o.id))
-    if (isInitialSeenPrint.current) {
-      seenPrint.current = ids
-      if (orders.length > 0) isInitialSeenPrint.current = false
+    const isWarmingUp = Date.now() - cashierMountedAt.current < 2500
+    if (isWarmingUp || !profile?.printAuto) {
+      orders.forEach((o) => seenPrint.current.add(o.id))
       return
     }
-    if (profile?.printAuto === true) {
-      orders.filter((o) => !seenPrint.current.has(o.id) && o.status === 'new')
-        .forEach((o) => printKitchenSlip(o, profile))
-    }
-    seenPrint.current = ids
+    const freshNewOrders = orders.filter((o) =>
+      !seenPrint.current.has(o.id) &&
+      o.status === 'new' &&
+      typeof o.createdAt === 'number' &&
+      o.createdAt > cashierMountedAt.current
+    )
+    orders.forEach((o) => seenPrint.current.add(o.id))
+    freshNewOrders.forEach((o) => printKitchenSlip(o, profile))
   }, [orders, profile])
 
   // Garson veya kasadan Fiş / Adisyon Yazdır butonuna basıldığında tetiklenen yazdırma kuyruğu
+  // Sayfa açılışında veya ilk 2.5 saniyedeki tüm mevcut istekleri belleğe kaydeder, ASLA geçmiş istekleri tekrar basmaz.
   const printedReqs = useRef(new Set())
-  const isInitialPrintLoad = useRef(true)
   useEffect(() => {
-    // 1. İlk yüklemede veritabanındaki tüm eski istekleri işaretle, ASLA geçmiş siparişleri tekrar yazdırma
-    if (isInitialPrintLoad.current) {
+    const isWarmingUp = Date.now() - cashierMountedAt.current < 2500
+    if (isWarmingUp) {
       orders.forEach((o) => {
         if (o.printRequestedAt) {
           printedReqs.current.add(`${o.id}_${o.printRequestedAt}`)
         }
       })
-      if (orders.length > 0) {
-        isInitialPrintLoad.current = false
-      }
       return
     }
 
-    // 2. Yalnızca sayfa açıkken gelen ve iptal/ödenmiş OLMAYAN canlı yazdırma taleplerini bas
     orders.forEach((o) => {
       if (o.printRequestedAt) {
         const key = `${o.id}_${o.printRequestedAt}`
-        const isFresh = o.printRequestedAt >= cashierMountedAt.current - 10000
+        const isFresh = typeof o.printRequestedAt === 'number' && o.printRequestedAt > cashierMountedAt.current
         const isNotPrinted = !printedReqs.current.has(key)
         const isActiveOrder = o.status !== 'paid' && o.status !== 'cancelled'
 

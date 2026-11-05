@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from 'react'
-import { Plus, Pencil, Trash2, ImageOff, Upload, Loader2, ScanLine, Check, X, AlertCircle, Sparkles, Tag, Minus } from 'lucide-react'
+import { Plus, Pencil, Flame, Trash2, ImageOff, Upload, Loader2, ScanLine, Check, X, AlertCircle, Sparkles, Tag, Minus } from 'lucide-react'
 import { fileToCompressedDataURL, urlToCompressedDataURL } from '../../lib/image'
 import {
   useCategories, useProducts,
   addProduct, updateProduct, removeProduct, toggleProduct,
-  addCategory, useBusinessId, useInventory, normalizeRecipe, INVENTORY_UNITS, useProfile, updateProfile, isBreadOrWrap, DEFAULT_BREAD_WRAP_INGREDIENTS,
+  addCategory, useBusinessId, useInventory, normalizeRecipe, INVENTORY_UNITS, useProfile, updateProfile, useOrders, useProductStats, computeOrderCounts, computeBestIds, isBreadOrWrap, DEFAULT_BREAD_WRAP_INGREDIENTS,
 } from '../../lib/store'
 import { subscribe } from '../../lib/db'
 import { money } from '../../lib/format'
@@ -23,6 +23,10 @@ export default function MenuManager() {
   const categories = useCategories(bizId)
   const products   = useProducts(bizId)
   const inventory  = useInventory(bizId)
+  const orders = useOrders(bizId)
+  const stats = useProductStats(bizId)
+  const productOrderCounts = useMemo(() => computeOrderCounts(orders, stats), [orders, stats])
+  const bestIds = useMemo(() => computeBestIds(productOrderCounts, categories, products), [productOrderCounts, categories, products])
   // Stok takibi kapalıysa reçete alanı hiç gösterilmez (İşletme Profili'nden açılır).
   const profile    = useProfile(bizId)
   const stockOn    = profile.stockTracking !== false
@@ -427,6 +431,11 @@ export default function MenuManager() {
                   <div className="grow min-w-0">
                     <p className="font-semibold text-ink-900 truncate flex items-center gap-1.5">
                       {p.name}
+                      {bestIds.includes(p.id) && (
+                        <span data-testid="MenuAdminBestBadge" className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-700 shrink-0 border border-red-200">
+                          <Flame className="h-2.5 w-2.5 text-red-600" /> Çok Satan ${productOrderCounts[p.id] ? `(${productOrderCounts[p.id]})` : ''}
+                        </span>
+                      )}
                       {p.chef && (
                         <span data-testid="MenuAdminChefBadge" className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 shrink-0 border border-purple-200">
                           👨‍🍳 Şefin Önerisi

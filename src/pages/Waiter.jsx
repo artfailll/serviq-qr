@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   UtensilsCrossed, Search, Plus, Minus, X, Send, ArrowLeft,
-  LayoutGrid, Check, Trash2, StickyNote, LogOut, ReceiptText, Printer,
+  LayoutGrid, Check, Trash2, StickyNote, LogOut, ReceiptText, Printer, Flame,
 } from 'lucide-react'
 import {
-  useProfile, useCategories, useProducts, useTables, createOrder, useBusinessId, useActiveStaff, useOrders, requestPrint,
+  useProfile, useCategories, useProducts, useTables, createOrder, useBusinessId, useActiveStaff, useOrders, useProductStats, computeOrderCounts, computeBestIds, requestPrint,
   isBreadOrWrap, DEFAULT_BREAD_WRAP_INGREDIENTS, BREAD_WRAP_INGREDIENTS,
 } from '../lib/store'
 // StaffPicker kaldirildi
@@ -37,6 +37,9 @@ function WaiterPOS({ bizId, onLogout }) {
   const products = useProducts(bizId)
   const tables = useTables(bizId)
   const orders = useOrders(bizId)
+  const stats = useProductStats(bizId)
+  const productOrderCounts = useMemo(() => computeOrderCounts(orders, stats), [orders, stats])
+  const bestIds = useMemo(() => computeBestIds(productOrderCounts, categories, products), [productOrderCounts, categories, products])
   const { staffId } = useActiveStaff(bizId)
 
   const portionsEnabled = profile?.portionsEnabled !== false
@@ -270,12 +273,12 @@ function WaiterPOS({ bizId, onLogout }) {
       {/* Ürünler */}
       <div className="mx-auto max-w-3xl px-4">
         {results ? (
-          <ProductList items={results} qtyOf={qtyOf} onSelect={handleProductClick} getVariants={getVariants} />
+          <ProductList items={results} qtyOf={qtyOf} onSelect={handleProductClick} getVariants={getVariants} bestIds={bestIds} />
         ) : (
           categories.map((c) => (
             <section key={c.id} id={'cat-' + c.id} className="pt-4" style={{ scrollMarginTop: 120 }}>
               <h2 className="font-display font-bold text-ink-800 mb-2 px-1">{c.name}</h2>
-              <ProductList items={grouped[c.id] || []} qtyOf={qtyOf} onSelect={handleProductClick} getVariants={getVariants} />
+              <ProductList items={grouped[c.id] || []} qtyOf={qtyOf} onSelect={handleProductClick} getVariants={getVariants} bestIds={bestIds} />
             </section>
           ))
         )}
@@ -315,7 +318,7 @@ function WaiterPOS({ bizId, onLogout }) {
   )
 }
 
-function ProductList({ items, qtyOf, onSelect, getVariants }) {
+function ProductList({ items, qtyOf, onSelect, getVariants, bestIds = [] }) {
   if (!items.length) return <p className="text-ink-400 text-sm py-4 px-1">Ürün yok.</p>
   return (
     <div className="space-y-2">
@@ -344,6 +347,11 @@ function ProductList({ items, qtyOf, onSelect, getVariants }) {
             <div className="grow min-w-0">
               <div className="flex items-center gap-2">
                 <p className="font-semibold text-ink-800 truncate">{p.name}</p>
+                {bestIds.includes(p.id) && (
+                  <span data-testid="WaiterBestBadge" className="text-[10px] font-extrabold bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
+                    <Flame size={10} strokeWidth={2.5}/> Çok Satan
+                  </span>
+                )}
                 {p.chef && (
                   <span data-testid="WaiterChefBadge" className="text-[10px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
                     👨‍🍳 Şefin Önerisi

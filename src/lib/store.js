@@ -12,9 +12,9 @@ import {
   transactValue,
   mapToList,
   now,
-} from './db'
-import { dateKey } from './format'
-import { getLoyaltyRules, applyLoyaltyCredit, applyRewardRedemption } from './loyalty'
+} from './db.js'
+import { dateKey } from './format.js'
+import { getLoyaltyRules, applyLoyaltyCredit, applyRewardRedemption } from './loyalty.js'
 
 // ───────── İşletme Context ─────────
 export const BusinessContext = createContext(null)
@@ -505,6 +505,8 @@ function bumpProductStats(bizId, items) {
 
 export const useProductStats = (bizId) =>
   useValue(bizId ? p(bizId, 'menu/stats') : null) || {}
+
+export * from './bestsellers'
 
 // ───────── Müşteri geri bildirimi (düşük puan içeride kalır) ─────────
 export const saveFeedback = (bizId, { rating, text, tableNo, orderId }) =>
