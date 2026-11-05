@@ -344,6 +344,11 @@ function ProductList({ items, qtyOf, onSelect, getVariants }) {
             <div className="grow min-w-0">
               <div className="flex items-center gap-2">
                 <p className="font-semibold text-ink-800 truncate">{p.name}</p>
+                {p.chef && (
+                  <span data-testid="WaiterChefBadge" className="text-[10px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
+                    👨‍🍳 Şefin Önerisi
+                  </span>
+                )}
                 {hasVariants && (
                   <span className="text-[10px] uppercase tracking-wider font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full shrink-0">
                     Porsiyonlu

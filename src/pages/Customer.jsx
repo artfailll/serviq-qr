@@ -1871,8 +1871,20 @@ function DetailContent({ product, accent, rgb, T, t, trDesc, quickNotes, onAdd, 
   return (
     <>
       {product.image && (
-        <div style={{ height:200, width:'100%', borderRadius:18, overflow:'hidden', marginBottom:16, background:T.inputBg }}>
+        <div style={{ position:'relative', height:200, width:'100%', borderRadius:18, overflow:'hidden', marginBottom:16, background:T.inputBg }}>
           <ProductImage src={product.image} alt={product.name} className="w-full h-full object-cover" />
+          {product.chef && (
+            <div data-testid="DetailContent-ChefBadge" style={{ position:'absolute', top:12, left:12, background:'linear-gradient(135deg,#7c3aed,#9333ea)', color:'#fff', padding:'4px 10px', borderRadius:999, fontSize:11, fontWeight:800, display:'flex', alignItems:'center', gap:5, boxShadow:'0 2px 10px rgba(0,0,0,0.3)' }}>
+              <span>👨‍🍳</span><span>{t('chef')}</span>
+            </div>
+          )}
+        </div>
+      )}
+      {!product.image && product.chef && (
+        <div data-testid="DetailContent-ChefBadge" style={{ marginBottom:12 }}>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:5, background:'#f3e8ff', color:'#7c3aed', border:'1px solid #d8b4fe', padding:'3px 10px', borderRadius:999, fontSize:11, fontWeight:800 }}>
+            <span>👨‍🍳</span><span>{t('chef')}</span>
+          </span>
         </div>
       )}
       {product.tags?.length > 0 && <div style={{ marginBottom:12 }}><MiniTags p={product} /></div>}

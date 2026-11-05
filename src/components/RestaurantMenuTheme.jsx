@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { ArrowUpRight, Flame, UtensilsCrossed, Wifi } from 'lucide-react'
+import { ArrowUpRight, Flame, UtensilsCrossed, Wifi, ChefHat, Tag } from 'lucide-react'
 import { ProductImage } from './ui'
 import { money } from '../lib/format'
 import './restaurant-menu-theme.css'
@@ -54,9 +54,60 @@ export function RestaurantHero({ T, profile, tableLabel }) {
   </header>
 }
 
-export function RestaurantCard({ p, idx, T, t, trName, trDesc, onOpen }) {
-  return <button type="button" className={`food-card food-card--${T.foodTheme} anim-card`} disabled={!p.available} onClick={() => onOpen(p)}>
-    <span className="food-card-image">{p.image ? <ProductImage src={p.image} alt="" className="w-full h-full object-cover"/> : <span className="food-card-placeholder"><UtensilsCrossed size={32}/></span>}{!p.available && <span className="food-soldout">{t('soldout')}</span>}</span>
-    <span className="food-card-copy"><span className="food-card-number">{String(idx+1).padStart(2,'0')} / {T.foodTheme === 'kebab' ? 'SOFRADAN' : 'MENÜDEN'}</span><span className="food-card-name">{trName(p)}</span>{trDesc(p) && <span className="food-card-description">{trDesc(p)}</span>}<span className="food-card-bottom"><span>{money(p.price)}{p.variants?.length ? ' +' : ''}</span><span className="food-card-action" aria-hidden="true"><ArrowUpRight size={18}/></span></span></span>
-  </button>
+export function RestaurantCard({ p, idx, T, t, trName, trDesc, onOpen, badge, accent }) {
+  const isChef = !!p.chef
+  const b = badge ? badge(p) : { chef: isChef, best: false, combo: !!p.comboItems?.length }
+  const chefLabel = t ? t('chef') : 'Şefin Önerisi'
+  const comboLabel = t ? t('combo') : 'Kampanya'
+  const bestLabel = t ? t('bestseller') : 'Çok Satan'
+
+  return (
+    <button type="button" className={`food-card food-card--${T.foodTheme} anim-card`} disabled={!p.available} onClick={() => onOpen(p)}>
+      <span className="food-card-image">
+        {p.image ? (
+          <ProductImage src={p.image} alt="" className="w-full h-full object-cover"/>
+        ) : (
+          <span className="food-card-placeholder"><UtensilsCrossed size={32}/></span>
+        )}
+        {(b.chef || b.combo || b.best) && (
+          <span className="food-card-badges">
+            {b.chef && (
+              <span className="food-card-badge food-card-badge--chef">
+                <ChefHat size={11} strokeWidth={2.5}/> {chefLabel}
+              </span>
+            )}
+            {b.combo && (
+              <span className="food-card-badge food-card-badge--combo">
+                <Tag size={10} strokeWidth={2.5}/> {comboLabel}
+              </span>
+            )}
+            {b.best && !b.chef && (
+              <span className="food-card-badge food-card-badge--best">
+                <Flame size={10} strokeWidth={2.5}/> {bestLabel}
+              </span>
+            )}
+          </span>
+        )}
+        {!p.available && <span className="food-soldout">{t ? t('soldout') : 'Tükendi'}</span>}
+      </span>
+      <span className="food-card-copy">
+        <span className="food-card-number">
+          {String(idx+1).padStart(2,'0')} / {T.foodTheme === 'kebab' ? 'SOFRADAN' : 'MENÜDEN'}
+        </span>
+        <span className="food-card-name">
+          {trName(p)}
+          {b.chef && (
+            <span className="food-card-inline-chef" title={chefLabel}>
+              <ChefHat size={11} strokeWidth={2.5} style={{ verticalAlign: '-1px' }} /> {chefLabel}
+            </span>
+          )}
+        </span>
+        {trDesc(p) && <span className="food-card-description">{trDesc(p)}</span>}
+        <span className="food-card-bottom">
+          <span>{money(p.price)}{p.variants?.length ? ' +' : ''}</span>
+          <span className="food-card-action" aria-hidden="true"><ArrowUpRight size={18}/></span>
+        </span>
+      </span>
+    </button>
+  )
 }

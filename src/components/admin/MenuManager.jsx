@@ -427,6 +427,16 @@ export default function MenuManager() {
                   <div className="grow min-w-0">
                     <p className="font-semibold text-ink-900 truncate flex items-center gap-1.5">
                       {p.name}
+                      {p.chef && (
+                        <span data-testid="MenuAdminChefBadge" className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 shrink-0 border border-purple-200">
+                          👨‍🍳 Şefin Önerisi
+                        </span>
+                      )}
+                      {p.featured && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 shrink-0 border border-amber-200">
+                          ⭐ Öne Çıkan
+                        </span>
+                      )}
                       {p.variants?.length > 0 && (
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
                           portionsEnabled && p.portionsEnabled !== false
