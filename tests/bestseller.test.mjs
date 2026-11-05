@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { computeOrderCounts, computeBestIds } from '../src/lib/bestsellers.js'
+import { computeOrderCounts, computeBestIds, isCorbaOrDonerCategory } from '../src/lib/bestsellers.js'
 
 test('computeOrderCounts aggregates order items and merges stats', () => {
   const orders = [
@@ -10,42 +10,58 @@ test('computeOrderCounts aggregates order items and merges stats', () => {
   ]
   const stats = { p1: 10, p4: 7 }
   const counts = computeOrderCounts(orders, stats)
-  // p1 had 5 from orders, stats has 10 -> takes max(5, 10) = 10
   assert.equal(counts.p1, 10)
   assert.equal(counts.p2, 1)
   assert.equal(counts.p3, 4)
   assert.equal(counts.p4, 7)
 })
 
-test('computeBestIds selects overall top products and category winners with min 2 orders', () => {
+test('isCorbaOrDonerCategory matches only soup and doner categories', () => {
+  assert.ok(isCorbaOrDonerCategory({ name: 'Çorbalar' }))
+  assert.ok(isCorbaOrDonerCategory({ name: 'Döner Çeşitleri' }))
+  assert.ok(isCorbaOrDonerCategory({ name: 'Yaprak Döner' }))
+  assert.ok(isCorbaOrDonerCategory({ id: 'cat_corbalar' }))
+  assert.ok(isCorbaOrDonerCategory({ id: 'cat_doner' }))
+  assert.ok(!isCorbaOrDonerCategory({ name: 'Tatlılar' }))
+  assert.ok(!isCorbaOrDonerCategory({ name: 'İçecekler' }))
+  assert.ok(!isCorbaOrDonerCategory({ name: 'Sulu Yemekler' }))
+  assert.ok(!isCorbaOrDonerCategory({ name: 'Salatalar' }))
+})
+
+test('computeBestIds only selects 1 top seller in Corbalar and 1 top seller in Donerler', () => {
   const counts = {
-    corba1: 20,
-    corba2: 15,
-    doner1: 10,
-    doner2: 2,
-    tatli1: 4,
-    icecek1: 8,
-    azSatan: 1, // only 1 order -> should NOT qualify
+    corba1: 62, // winner in corba
+    corba2: 16, // second in corba -> should NOT get badge
+    corba3: 14,
+    doner1: 7,  // winner in doner
+    doner2: 4,  // second in doner -> should NOT get badge
+    tatli1: 50, // high orders, but in Tatlilar -> should NOT get badge
+    icecek1: 90 // high orders, but in Icecekler -> should NOT get badge
   }
   const categories = [
-    { id: 'cat_corba', name: 'Çorbalar' },
-    { id: 'cat_doner', name: 'Dönerler' },
+    { id: 'cat_corbalar', name: 'Çorbalar' },
+    { id: 'cat_doner', name: 'Döner Çeşitleri' },
     { id: 'cat_tatli', name: 'Tatlılar' },
+    { id: 'cat_icecek', name: 'İçecekler' },
   ]
   const products = [
-    { id: 'corba1', categoryId: 'cat_corba', available: true },
-    { id: 'corba2', categoryId: 'cat_corba', available: true },
+    { id: 'corba1', categoryId: 'cat_corbalar', available: true },
+    { id: 'corba2', categoryId: 'cat_corbalar', available: true },
+    { id: 'corba3', categoryId: 'cat_corbalar', available: true },
     { id: 'doner1', categoryId: 'cat_doner', available: true },
     { id: 'doner2', categoryId: 'cat_doner', available: true },
     { id: 'tatli1', categoryId: 'cat_tatli', available: true },
-    { id: 'azSatan', categoryId: 'cat_doner', available: true },
+    { id: 'icecek1', categoryId: 'cat_icecek', available: true },
   ]
 
   const best = computeBestIds(counts, categories, products)
 
-  assert.ok(best.includes('corba1'), 'corba1 is overall top')
-  assert.ok(best.includes('corba2'), 'corba2 is overall top')
-  assert.ok(best.includes('doner1'), 'doner1 is category winner and top seller')
-  assert.ok(best.includes('tatli1'), 'tatli1 is category winner')
-  assert.ok(!best.includes('azSatan'), 'azSatan has only 1 order so should not be bestseller')
+  // Exactly 2 items: 1 soup winner, 1 doner winner
+  assert.equal(best.length, 2)
+  assert.ok(best.includes('corba1'), 'corba1 is the sole bestseller in Çorbalar')
+  assert.ok(!best.includes('corba2'), 'corba2 is not the top soup')
+  assert.ok(best.includes('doner1'), 'doner1 is the sole bestseller in Döner')
+  assert.ok(!best.includes('doner2'), 'doner2 is not the top doner')
+  assert.ok(!best.includes('tatli1'), 'tatli1 is excluded because category is not çorba or döner')
+  assert.ok(!best.includes('icecek1'), 'icecek1 is excluded because category is not çorba or döner')
 })
