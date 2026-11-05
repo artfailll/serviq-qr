@@ -4,7 +4,7 @@ import { fileToCompressedDataURL, urlToCompressedDataURL } from '../../lib/image
 import {
   useCategories, useProducts,
   addProduct, updateProduct, removeProduct, toggleProduct,
-  addCategory, useBusinessId, useInventory, normalizeRecipe, INVENTORY_UNITS, useProfile, updateProfile,
+  addCategory, useBusinessId, useInventory, normalizeRecipe, INVENTORY_UNITS, useProfile, updateProfile, isBreadOrWrap, DEFAULT_BREAD_WRAP_INGREDIENTS,
 } from '../../lib/store'
 import { subscribe } from '../../lib/db'
 import { money } from '../../lib/format'
@@ -283,7 +283,7 @@ export default function MenuManager() {
   const recipeCost = useMemo(() => {
     if (!editing?.recipe?.length) return 0
     const cost = editing.recipe.reduce((sum, r) => {
-      const item = inventory.find(x => x.id === r.itemId)
+      const item = (inventory || []).find(x => x.id === r.itemId)
       return sum + (Number(item?.cost) || 0) * (Number(r.qty) || 0)
     }, 0)
     return Math.round(cost * 100) / 100
@@ -297,6 +297,8 @@ export default function MenuManager() {
     const clean = {
       ...editing,
       portionsEnabled: editing.portionsEnabled !== false,
+      isBreadOrWrap: editing.isBreadOrWrap ?? isBreadOrWrap(editing),
+      customIngredientsEnabled: editing.customIngredientsEnabled ?? isBreadOrWrap(editing),
       variants: (editing.variants || []).filter(v => v.name?.trim() && Number(v.price) > 0)
         .map(v => ({ name: v.name.trim(), price: Number(v.price) })),
       extras: (editing.extras || []).filter(e => e.name?.trim())
@@ -384,6 +386,7 @@ export default function MenuManager() {
           </button>
         </div>
         <div className="flex items-center gap-2">
+          <button type="button" onClick={openIngModal} className="btn-outline flex items-center gap-2 !border-emerald-300 !text-emerald-700 hover:!bg-emerald-50" title="Garsonun dürüm ve ekmek içi seçimlerinde çıkan malzemeleri yönet"><span>🌯</span><span>Dürüm / Ekmek Malzemeleri</span></button>
           {/* MENÜ TARA */}
           <button
             onClick={() => { setScanOpen(true); setScanResult(null); setScanErr(''); setImportDone(false) }}
@@ -994,6 +997,81 @@ export default function MenuManager() {
           )}
         </div>
       </Modal>
+
+      {/* ── Ekmek / Dürüm Malzemeleri Yönetim Modalı ── */}
+      <Modal open={ingModalOpen} onClose={() => setIngModalOpen(false)} title="Dürüm / Ekmek Malzemeleri" maxW="max-w-lg"
+        footer={
+          <div className="flex gap-2 w-full">
+            <button type="button" onClick={() => setIngModalOpen(false)} className="btn-ghost flex-1">İptal</button>
+            <button type="button" onClick={saveIngs} disabled={savingIng} className="btn-primary flex-1">
+              {savingIng ? 'Kaydediliyor…' : 'Kaydet'}
+            </button>
+          </div>
+        }>
+        <div className="space-y-4">
+          <p className="text-xs text-ink-500">
+            Garson ekranda Dürüm veya Ekmek arası ürünlere tıkladığında burada tanımlı malzemeler açılır. Garson "soğansız", "bol domates" gibi seçimleri buradan kolayca yapar.
+          </p>
+
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {ingList.map((item, idx) => (
+              <div key={item.id || idx} className="flex items-center justify-between p-2.5 rounded-xl bg-ink-50 border border-ink-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">{item.icon || (item.type === 'exclude' ? '🚫' : '✨')}</span>
+                  <span className="text-sm font-bold text-ink-800">{item.label}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                    item.type === 'prefer' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+                  }`}>
+                    {item.type === 'prefer' ? 'Tercih / Pişme' : 'Çıkarılabilir Malzeme'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeIng(idx)}
+                  className="btn-ghost h-8 w-8 !p-0 rounded-full text-red-500 hover:bg-red-50"
+                  title="Sil"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            {ingList.length === 0 && (
+              <p className="text-center text-xs text-ink-400 py-4">Henüz malzeme eklenmemiş.</p>
+            )}
+          </div>
+
+          <div className="pt-2 border-t border-ink-100 space-y-2">
+            <span className="text-xs font-bold text-ink-700 block">Yeni Malzeme Ekle</span>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                className="inp flex-1 text-sm"
+                placeholder="Örn: Turşu, Mayonez, Acı Biber"
+                value={newIngName}
+                onChange={e => setNewIngName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addIng() } }}
+              />
+              <select
+                className="inp w-36 text-xs font-semibold"
+                value={newIngType}
+                onChange={e => setNewIngType(e.target.value)}
+              >
+                <option value="exclude">🚫 Çıkarılabilir</option>
+                <option value="prefer">✨ Tercih / Pişme</option>
+              </select>
+              <button
+                type="button"
+                onClick={addIng}
+                disabled={!newIngName.trim()}
+                className="btn-primary !px-3 shrink-0 text-sm disabled:opacity-40"
+              >
+                <Plus className="h-4 w-4" /> Ekle
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   )
 }

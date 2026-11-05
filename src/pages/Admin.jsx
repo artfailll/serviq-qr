@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { LayoutGrid, BookOpen, BarChart3, UtensilsCrossed, Monitor, Settings, LogOut, Volume2, VolumeX, BrainCircuit, QrCode } from 'lucide-react'
 import { DemoBadge } from '../components/ui'
 import TableMap from '../components/admin/TableMap'
@@ -35,7 +35,18 @@ export default function Admin() {
   async function toggleOrdering() {
     await updateProfile(bizId, { orderingEnabled: !orderingEnabled })
   }
-  const [tab, setTab] = useState('tables')
+  const [searchParams] = useSearchParams()
+  const initialTab = searchParams.get('tab') || searchParams.get('sekme') || (window.location.pathname.includes('/menu') ? 'menu' : 'tables')
+  const [tab, setTabState] = useState(TABS.some(t => t.key === initialTab) ? initialTab : 'tables')
+
+  function setTab(k) {
+    setTabState(k)
+    try {
+      const next = new URLSearchParams(window.location.search)
+      next.set('tab', k)
+      window.history.replaceState(null, '', `${window.location.pathname}?${next.toString()}`)
+    } catch {}
+  }
   const [justAuthed, setJustAuthed] = useState(false)
   const status = useRoleAuthState('admin')
   const soundOn = useSoundPref()

@@ -121,12 +121,17 @@ function AppWithBusiness({ bizId }) {
         <StaffAlerts />
         <Suspense fallback={<Loader />}>
           <Routes>
-            <Route path="/"         element={<Home />} />
-            <Route path="/menu"     element={<Customer />} />
-            <Route path="/kasa"     element={<Cashier />} />
-            <Route path="/garson"   element={<Waiter />} />
-            <Route path="/yonetim"  element={<Admin />} />
-            <Route path="*"         element={<Home />} />
+            <Route path="/"              element={<Home />} />
+            <Route path="/menu"          element={<Customer />} />
+            <Route path="/kasa"          element={<Cashier />} />
+            <Route path="/garson"        element={<Waiter />} />
+            <Route path="/yonetim"       element={<Admin />} />
+            <Route path="/yonetim/*"     element={<Admin />} />
+            <Route path="/admin"         element={<Admin />} />
+            <Route path="/admin/*"       element={<Admin />} />
+            <Route path="/menu-yonetimi" element={<Admin />} />
+            <Route path="/menuyonetimi"  element={<Admin />} />
+            <Route path="*"              element={<Home />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>

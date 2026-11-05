@@ -407,6 +407,9 @@ export const addProduct = (bizId, prod) =>
     available: prod.available !== false, order: prod.order || 99,
     featured: !!prod.featured, tags: prod.tags || [], chef: !!prod.chef,
     variants: prod.variants || [], extras: prod.extras || [],
+    portionsEnabled: prod.portionsEnabled !== false,
+    isBreadOrWrap: !!prod.isBreadOrWrap,
+    customIngredientsEnabled: !!prod.customIngredientsEnabled,
     // Yönetmelik uyumluluğu — 1 Temmuz 2026 Fiyat Etiketi Yönetmeliği
     gram: prod.gram || '', kalori: prod.kalori || '',
     allergens: prod.allergens || [], alkol: !!prod.alkol, domuz: !!prod.domuz,
