@@ -1,5 +1,33 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const BUILD_VERSION = Date.now().toString()
+
+function autoVersionPlugin(version) {
+  return {
+    name: 'auto-version-plugin',
+    transformIndexHtml(html) {
+      return html.replace(/%BUILD_TIME%/g, version)
+    },
+    buildStart() {
+      const payload = JSON.stringify({ version, buildTime: new Date().toISOString() })
+      try {
+        fs.writeFileSync(path.resolve(__dirname, 'public/version.json'), payload, 'utf8')
+      } catch {}
+    },
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify({ version, buildTime: new Date().toISOString() }),
+      })
+    },
+  }
+}
 
 export default defineConfig(({ command, mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ''), ...process.env }
@@ -10,11 +38,14 @@ export default defineConfig(({ command, mode }) => {
     if (url.protocol !== 'https:') throw new Error('Firebase adresi HTTPS olmalıdır.')
   }
   return {
-  plugins: [react()],
-  build: { outDir: mode === 'demo' ? 'dist-demo' : 'dist' },
-  server: {
-    host: true,
-    port: 5173,
-  },
+    plugins: [react(), autoVersionPlugin(BUILD_VERSION)],
+    define: {
+      'window.__APP_VERSION__': JSON.stringify(BUILD_VERSION),
+    },
+    build: { outDir: mode === 'demo' ? 'dist-demo' : 'dist' },
+    server: {
+      host: true,
+      port: 5173,
+    },
   }
 })
