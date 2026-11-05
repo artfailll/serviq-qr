@@ -423,7 +423,16 @@ export const useOrders = (bizId) =>
   useList(bizId ? p(bizId, 'orders') : null,
     (a, b) => (b.createdAt || 0) - (a.createdAt || 0))
 
-export async function createOrder(bizId, { tableId, tableNo, items, note, customer, staffId }) {
+export function requestPrint(bizId, orderId, printType = 'bill') {
+  if (!bizId || !orderId) return
+  return updateValue(p(bizId, `orders/${orderId}`), {
+    printRequestedAt: now(),
+    printType,
+    updatedAt: now(),
+  })
+}
+
+export async function createOrder(bizId, { tableId, tableNo, items, note, customer, staffId, printRequested = false, printType = 'kitchen' }) {
   if (!bizId || !tableId || !Number.isInteger(tableNo) || tableNo < 1) throw new Error('Masa tanımlı değil. Masadaki QR kodu tekrar okutun.')
   if (!items?.length || items.some(it => !it.productId || !Number.isFinite(it.price) || it.price < 0 || !Number.isInteger(it.qty) || it.qty < 1)) throw new Error('Sepet bilgileri geçersiz. Ürünleri kontrol edin.')
   const total = Math.round(items.reduce((s, it) => s + it.price * it.qty, 0) * 100) / 100
@@ -433,7 +442,7 @@ export async function createOrder(bizId, { tableId, tableNo, items, note, custom
     note: note || '', customer: customer?.name || customer?.phone ? { name: String(customer.name || '').slice(0, 100), phone: String(customer.phone || '').slice(0, 30), consent: customer.consent !== false } : null,
     // Siparişi kim girdi — garson ekranında seçili personel, QR'dan gelirse null
     staffId: staffId || null,
-    status: 'new', createdAt: now(), updatedAt: now(),
+    status: 'new', createdAt: now(), updatedAt: now(), ...(printRequested ? { printRequestedAt: now(), printType } : {}),
   })
   bumpProductStats(bizId, items).catch(() => {
     if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('serviq:data-error', { detail: 'stats-update' }))

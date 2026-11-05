@@ -77,15 +77,34 @@ function CashierBoard({ onLogout }) {
 
   // Otomatik adisyon: yeni sipariş gelince mutfak fişini yazdır (ayar açıksa).
   // Sessiz basmak için Chrome'u "kiosk printing" modunda açmak gerekir.
+  // Otomatik adisyon: yeni sipariş gelince mutfak fişini yazdır (ayar açıksa veya garsondan geldiyse).
+  // Sessiz basmak için Chrome'u "kiosk printing" modunda açmak gerekir.
   const seenPrint = useRef(null)
   useEffect(() => {
     const ids = new Set(orders.map((o) => o.id))
     if (seenPrint.current === null) { seenPrint.current = ids; return }
-    if (profile.printAuto) {
-      orders.filter((o) => !seenPrint.current.has(o.id) && o.status === 'new')
-        .forEach((o) => printKitchenSlip(o, profile))
-    }
+    const autoForWaiter = profile?.printOnWaiterOrder !== false
+    orders.filter((o) => !seenPrint.current.has(o.id) && o.status === 'new' && (profile?.printAuto || (autoForWaiter && o.staffId)))
+      .forEach((o) => printKitchenSlip(o, profile))
     seenPrint.current = ids
+  }, [orders, profile])
+
+  // Garson veya kasa tarafından belirli bir sipariş/hesap için yazdırma talep edildiğinde otomatik bas
+  const printedReqs = useRef(new Set())
+  useEffect(() => {
+    orders.forEach((o) => {
+      if (o.printRequestedAt) {
+        const key = `${o.id}_${o.printRequestedAt}`
+        if (!printedReqs.current.has(key)) {
+          printedReqs.current.add(key)
+          if (o.printType === 'kitchen') {
+            printKitchenSlip(o, profile)
+          } else {
+            printBill(o, profile)
+          }
+        }
+      }
+    })
   }, [orders, profile])
 
   const hasKitchen = profile.kitchenEnabled !== false

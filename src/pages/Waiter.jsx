@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   UtensilsCrossed, Search, Plus, Minus, X, Send, ArrowLeft,
-  LayoutGrid, Check, Trash2, StickyNote, LogOut,
+  LayoutGrid, Check, Trash2, StickyNote, LogOut, ReceiptText, Printer,
 } from 'lucide-react'
 import {
-  useProfile, useCategories, useProducts, useTables, createOrder, useBusinessId, useActiveStaff,
+  useProfile, useCategories, useProducts, useTables, createOrder, useBusinessId, useActiveStaff, useOrders, requestPrint,
 } from '../lib/store'
 // StaffPicker kaldirildi
 import { money } from '../lib/format'
+import { printKitchenSlip, printBill, printTableBill } from '../lib/receipt'
 import AdminLogin, { useRoleAuthState, clearStaffSession, getStaffSession } from './AdminLogin'
 
 export default function Waiter() {
@@ -34,6 +35,7 @@ function WaiterPOS({ bizId, onLogout }) {
   const categories = useCategories(bizId)
   const products = useProducts(bizId)
   const tables = useTables(bizId)
+  const orders = useOrders(bizId)
   const { staffId } = useActiveStaff(bizId)
 
   const portionsEnabled = profile?.portionsEnabled !== false
@@ -102,6 +104,17 @@ function WaiterPOS({ bizId, onLogout }) {
     showToast(`${itemName} eklendi`)
   }
 
+    function handlePrintTableAdisyon(tbl, tblOrders) {
+    if (!tblOrders?.length) return
+    // 1. Firebase üzerinden Kasa yazıcısına sessiz/sorusuz ilet
+    tblOrders.forEach((o) => requestPrint(bizId, o.id, 'bill'))
+    // 2. Cihaz yerel yazıcıya bağlıysa doğrudan bas
+    try {
+      printTableBill(tbl.no, tblOrders, profile)
+    } catch {}
+    showToast(`Masa ${tbl.no} fişi yazıcıya gönderildi!`)
+  }
+
   function handleProductClick(p) {
     const vars = getVariants(p)
     if (vars.length > 0) {
@@ -120,21 +133,37 @@ function WaiterPOS({ bizId, onLogout }) {
     setCart((prev) => { const c = [...prev]; c[i] = { ...c[i], note }; return c })
   }
 
-  async function send() {
+  async function send(withPrint = false) {
     if (sendingRef.current || !cart.length || !table) return
     sendingRef.current = true
     setSending(true)
     setSendError('')
     try {
-    await createOrder(bizId, {
-      tableId: table.id, tableNo: table.no,
-      items: cart.map((i) => ({ productId: i.productId, name: i.name, price: i.price, qty: i.qty, note: i.note || '' })),
-      staffId,
-    })
-    setCart([]); setCartOpen(false); setSent(true)
-    setTimeout(() => setSent(false), 1800)
-    } catch (error) { setSendError(error.message || 'Sipariş kaydedilemedi. Sepet korunuyor.') }
-    finally { sendingRef.current = false; setSending(false) }
+      const orderData = {
+        tableId: table.id,
+        tableNo: table.no,
+        items: cart.map((i) => ({ productId: i.productId, name: i.name, price: i.price, qty: i.qty, note: i.note || '' })),
+        staffId,
+        printRequested: withPrint,
+        printType: 'kitchen',
+      }
+      await createOrder(bizId, orderData)
+      if (withPrint) {
+        try {
+          printKitchenSlip({ ...orderData, createdAt: Date.now() }, profile)
+        } catch {}
+      }
+      setCart([])
+      setCartOpen(false)
+      setSent(true)
+      showToast(withPrint ? 'Sipariş kaydedildi ve fiş yazıcıya iletildi!' : 'Sipariş mutfağa gönderildi!')
+      setTimeout(() => setSent(false), 1800)
+    } catch (error) {
+      setSendError(error.message || 'Sipariş kaydedilemedi. Sepet korunuyor.')
+    } finally {
+      sendingRef.current = false
+      setSending(false)
+    }
   }
 
   // ── Masa seçimi ──
@@ -147,12 +176,31 @@ function WaiterPOS({ bizId, onLogout }) {
             <LayoutGrid className="h-4 w-4" /> <span className="font-semibold">Sipariş girmek için masa seçin</span>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
-            {tables.map((t) => (
-              <button key={t.id} onClick={() => setTable(t)}
-                className="aspect-square rounded-2xl bg-white border-2 border-ink-200 hover:border-brand-400 hover:bg-brand-50 active:scale-95 transition-all grid place-items-center">
-                <span className="font-display text-lg font-extrabold text-ink-800">{t.no}</span>
-              </button>
-            ))}
+            {tables.map((t) => {
+              const activeOrders = orders.filter((o) => (o.tableId === t.id || String(o.tableNo) === String(t.no)) && o.status !== 'paid' && o.status !== 'cancelled')
+              const tableTotal = activeOrders.reduce((s, o) => s + (Number(o.total) || 0), 0)
+              const isOccupied = activeOrders.length > 0
+
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTable(t)}
+                  className={`aspect-square rounded-2xl border-2 active:scale-95 transition-all flex flex-col items-center justify-center p-2 relative ${
+                    isOccupied
+                      ? 'bg-amber-50/80 border-amber-400 hover:border-amber-500 hover:bg-amber-100/70 shadow-xs'
+                      : 'bg-white border-ink-200 hover:border-brand-400 hover:bg-brand-50'
+                  }`}
+                >
+                  <span className="font-display text-xl font-black text-ink-900">{t.no}</span>
+                  {isOccupied && (
+                    <span className="mt-1 text-[11px] font-extrabold text-brand-700 bg-white px-2 py-0.5 rounded-full border border-amber-200 shadow-xs">
+                      {money(tableTotal)}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
             {tables.length === 0 && <p className="col-span-full text-center text-ink-400 py-10">Masa yok. Yönetim panelinden masa ekleyin.</p>}
           </div>
         </div>
@@ -171,6 +219,35 @@ function WaiterPOS({ bizId, onLogout }) {
         onLogout={onLogout}
         left={<button disabled={sending} onClick={() => { setTable(null); setQuery('') }} className="btn-ghost !py-1.5 !px-2.5"><ArrowLeft className="h-4 w-4" /></button>}
       />
+
+      {/* Masa Açık Hesap / Fiş Yazdırma Barı */}
+      {(() => {
+        const tableOrders = orders.filter((o) => (o.tableId === table.id || String(o.tableNo) === String(table.no)) && o.status !== 'paid' && o.status !== 'cancelled')
+        const tableTotal = tableOrders.reduce((s, o) => s + (Number(o.total) || 0), 0)
+        if (!tableOrders.length) return null
+        return (
+          <div className="bg-white border-b border-ink-200 px-4 py-2.5 flex items-center justify-between gap-3 shadow-xs">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-bold text-ink-700">Masa {table.no} Açık Siparişleri</span>
+              </div>
+              <p className="text-sm font-black text-brand-600 mt-0.5">
+                {money(tableTotal)} <span className="text-xs font-normal text-ink-400">({tableOrders.length} adisyon)</span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handlePrintTableAdisyon(table, tableOrders)}
+              className="btn-outline !py-2 !px-3 font-bold text-xs flex items-center gap-1.5 bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100 active:scale-95 transition-all shadow-xs"
+              title="Masadaki tüm siparişlerin hesap fişini soru sormadan yazdır"
+            >
+              <ReceiptText className="h-4 w-4 text-brand-600" />
+              <span>Adisyon / Fiş Yazdır</span>
+            </button>
+          </div>
+        )
+      })()}
 
       {/* Arama */}
       <div className="sticky top-0 z-20 bg-ink-100/95 backdrop-blur px-4 pt-3 pb-2">
@@ -433,9 +510,27 @@ function CartSheet({ cart, total, tableNo, onClose, changeQty, setNote, send, se
           </div>
           {sendError && <p role="alert" className="text-red-700 mb-3">{sendError}</p>}
           {sending && <p role="status" className="mb-3">Sunucu onayı bekleniyor. Sayfayı kapatmayın.</p>}
-          <button onClick={send} disabled={sending || !cart.length} className="btn-primary w-full !py-3.5 text-base">
-            <Send className="h-5 w-5" /> {sending ? 'Gönderiliyor…' : 'Siparişi Onayla'}
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => send(true)}
+              disabled={sending || !cart.length}
+              className="btn-outline !py-3 font-bold text-xs flex items-center justify-center gap-1.5 bg-amber-50 border-2 border-amber-400 text-amber-900 hover:bg-amber-100 active:scale-98 transition-all"
+              title="Siparişi kaydeder ve termal yazıcıdan fişi soru sormadan basar"
+            >
+              <Printer className="h-4 w-4 text-amber-700" />
+              <span>Fiş Yazdır & Gönder</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => send(false)}
+              disabled={sending || !cart.length}
+              className="btn-primary !py-3 font-bold text-sm flex items-center justify-center gap-1.5 shadow-md active:scale-98 transition-all"
+            >
+              <Send className="h-4 w-4" />
+              <span>{sending ? 'Gönderiliyor…' : 'Siparişi Onayla'}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

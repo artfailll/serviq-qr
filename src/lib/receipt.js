@@ -112,3 +112,19 @@ export function billHTML(order, profile, method) {
 
 export const printKitchenSlip = (order, profile) => printHTML(kitchenSlipHTML(order, profile))
 export const printBill = (order, profile, method) => printHTML(billHTML(order, profile, method))
+
+// ── TOPLU MASA HESAP FİŞİ — masadaki tüm açık siparişleri tek adisyonda birleştirir ──
+export function tableBillHTML(tableNo, orders, profile, method) {
+  const allItems = (orders || []).flatMap((o) => o.items || [])
+  const total = Math.round(allItems.reduce((s, it) => s + it.price * it.qty, 0) * 100) / 100
+  const combined = {
+    tableNo,
+    items: allItems,
+    total,
+    createdAt: orders?.[0]?.createdAt || Date.now(),
+  }
+  return billHTML(combined, profile, method)
+}
+
+export const printTableBill = (tableNo, orders, profile, method) =>
+  printHTML(tableBillHTML(tableNo, orders, profile, method))
