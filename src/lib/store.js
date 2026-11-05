@@ -54,6 +54,39 @@ export function useTicker(ms = 1000) {
 export const useProfile = (bizId) => useValue(bizId ? p(bizId, 'menu/profile') : null) || {}
 export const updateProfile = (bizId, patch) => updateValue(p(bizId, 'menu/profile'), patch)
 
+// Ekmek / Dürüm tespit yardımcısı — malzeme seçimi yapılacak ürünler
+export function isBreadOrWrap(p) {
+  if (!p) return false
+  if (p.customIngredientsEnabled === false) return false
+  if (p.isBreadOrWrap === true) return true
+  const cat = String(p.categoryId || '').toLowerCase()
+  const name = String(p.name || '').toLowerCase()
+  const desc = String(p.desc || '').toLowerCase()
+  if (cat.includes('durum') || cat.includes('dürüm') || cat.includes('sandvic') || cat.includes('ekmek')) return true
+  if (/(ekmek|dürüm|durum|tombik|lavaş|lavas|sandviç|sandvic|burger|tost)/i.test(name)) return true
+  if (/(ekmek|dürüm|durum|lavaş)/i.test(desc)) return true
+  return false
+}
+
+// Garsonun tek dokunuşla seçebileceği varsayılan döner / dürüm malzemeleri
+export const DEFAULT_BREAD_WRAP_INGREDIENTS = [
+  // Çıkarılacaklar (Olmasın)
+  { id: 'no_onion', label: 'Soğansız', icon: '🧅', type: 'exclude' },
+  { id: 'no_tomato', label: 'Domatessiz', icon: '🍅', type: 'exclude' },
+  { id: 'no_greens', label: 'Yeşilliksiz', icon: '🥬', type: 'exclude' },
+  { id: 'no_pickle', label: 'Turşusuz', icon: '🥒', type: 'exclude' },
+  { id: 'no_sauce', label: 'Sossuz', icon: '🥫', type: 'exclude' },
+  { id: 'no_spicy', label: 'Acısız', icon: '🌶️', type: 'exclude' },
+  // Tercihler & Ekstralar
+  { id: 'extra_sauce', label: 'Bol Soslu', icon: '🥫', type: 'prefer' },
+  { id: 'extra_spicy', label: 'Bol Acılı', icon: '🌶️', type: 'prefer' },
+  { id: 'with_fries', label: 'Patatesli', icon: '🍟', type: 'prefer' },
+  { id: 'only_meat', label: 'Sade (Yalnız Et)', icon: '🥩', type: 'prefer' },
+  { id: 'ketchup_mayo', label: 'Ketçap & Mayonez', icon: '🍶', type: 'prefer' },
+  { id: 'double_lavas', label: 'Çift Lavaş', icon: '🫓', type: 'prefer' },
+]
+export const BREAD_WRAP_INGREDIENTS = DEFAULT_BREAD_WRAP_INGREDIENTS
+
 // ───────── Menü hook'ları (bizId alır) ─────────
 export const useCategories = (bizId) =>
   useList(bizId ? p(bizId, 'menu/categories') : null,

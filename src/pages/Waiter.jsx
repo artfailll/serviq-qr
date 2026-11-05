@@ -6,41 +6,12 @@ import {
 } from 'lucide-react'
 import {
   useProfile, useCategories, useProducts, useTables, createOrder, useBusinessId, useActiveStaff, useOrders, requestPrint,
+  isBreadOrWrap, DEFAULT_BREAD_WRAP_INGREDIENTS, BREAD_WRAP_INGREDIENTS,
 } from '../lib/store'
 // StaffPicker kaldirildi
 import { money } from '../lib/format'
 import { printTableBill } from '../lib/receipt'
 import AdminLogin, { useRoleAuthState, clearStaffSession, getStaffSession } from './AdminLogin'
-
-// Ekmek / Dürüm tespit yardımcısı — malzeme seçimi yapılacak ürünler
-export function isBreadOrWrap(p) {
-  if (!p) return false
-  const cat = String(p.categoryId || '').toLowerCase()
-  const name = String(p.name || '').toLowerCase()
-  const desc = String(p.desc || '').toLowerCase()
-  if (cat.includes('durum') || cat.includes('dürüm') || cat.includes('sandvic') || cat.includes('ekmek')) return true
-  if (/(ekmek|dürüm|durum|tombik|lavaş|lavas|sandviç|sandvic|burger|tost)/i.test(name)) return true
-  if (/(ekmek|dürüm|durum|lavaş)/i.test(desc)) return true
-  return false
-}
-
-// Garsonun tek dokunuşla seçebileceği pratik döner / dürüm malzemeleri
-export const BREAD_WRAP_INGREDIENTS = [
-  // Çıkarılacaklar (Olmasın)
-  { id: 'no_onion', label: 'Soğansız', icon: '🧅', type: 'exclude' },
-  { id: 'no_tomato', label: 'Domatessiz', icon: '🍅', type: 'exclude' },
-  { id: 'no_greens', label: 'Yeşilliksiz', icon: '🥬', type: 'exclude' },
-  { id: 'no_pickle', label: 'Turşusuz', icon: '🥒', type: 'exclude' },
-  { id: 'no_sauce', label: 'Sossuz', icon: '🥫', type: 'exclude' },
-  { id: 'no_spicy', label: 'Acısız', icon: '🌶️', type: 'exclude' },
-  // Tercihler & Ekstralar
-  { id: 'extra_sauce', label: 'Bol Soslu', icon: '🥫', type: 'prefer' },
-  { id: 'extra_spicy', label: 'Bol Acılı', icon: '🌶️', type: 'prefer' },
-  { id: 'with_fries', label: 'Patatesli', icon: '🍟', type: 'prefer' },
-  { id: 'only_meat', label: 'Sade (Yalnız Et)', icon: '🥩', type: 'prefer' },
-  { id: 'ketchup_mayo', label: 'Ketçap & Mayonez', icon: '🍶', type: 'prefer' },
-  { id: 'double_lavas', label: 'Çift Lavaş', icon: '🫓', type: 'prefer' },
-]
 
 export default function Waiter() {
   const bizId = useBusinessId()
@@ -328,6 +299,7 @@ function WaiterPOS({ bizId, onLogout }) {
           product={portionProduct}
           variants={getVariants(portionProduct)}
           cart={cart}
+          ingredients={profile?.breadWrapIngredients?.length ? profile.breadWrapIngredients : DEFAULT_BREAD_WRAP_INGREDIENTS}
           onClose={() => setPortionProduct(null)}
           onAdd={add}
         />
@@ -426,7 +398,7 @@ function ProductList({ items, qtyOf, onSelect, getVariants }) {
   )
 }
 
-function ProductCustomModal({ product, variants, cart, onClose, onAdd }) {
+function ProductCustomModal({ product, variants, cart, onClose, onAdd, ingredients = DEFAULT_BREAD_WRAP_INGREDIENTS }) {
   if (!product) return null
   const bread = isBreadOrWrap(product)
   const hasVariants = variants.length > 0
@@ -622,7 +594,7 @@ function ProductCustomModal({ product, variants, cart, onClose, onAdd }) {
               <span>🚫</span> İstenmeyen Malzemeler (Çıkarılsın):
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {BREAD_WRAP_INGREDIENTS.filter((it) => it.type === 'exclude').map((it) => {
+              {ingredients.filter((it) => it.type === 'exclude').map((it) => {
                 const active = selectedTags.includes(it.label)
                 return (
                   <button
@@ -650,7 +622,7 @@ function ProductCustomModal({ product, variants, cart, onClose, onAdd }) {
               <span>✨</span> Özel Tercihler & Ekstralar:
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {BREAD_WRAP_INGREDIENTS.filter((it) => it.type === 'prefer').map((it) => {
+              {ingredients.filter((it) => it.type === 'prefer').map((it) => {
                 const active = selectedTags.includes(it.label)
                 return (
                   <button

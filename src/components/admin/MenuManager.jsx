@@ -55,6 +55,48 @@ export default function MenuManager() {
   // Kampanya/kombo menü state'leri
   const [comboOpen, setComboOpen]         = useState(false)
   const [comboEditing, setComboEditing]   = useState(null)
+
+  // Ekmek / Dürüm malzeme seçenekleri yönetimi
+  const [ingModalOpen, setIngModalOpen] = useState(false)
+  const [ingList, setIngList] = useState([])
+  const [newIngName, setNewIngName] = useState('')
+  const [newIngType, setNewIngType] = useState('exclude') // 'exclude' | 'prefer'
+  const [savingIng, setSavingIng] = useState(false)
+
+  function openIngModal() {
+    setIngList(profile?.breadWrapIngredients?.length ? profile.breadWrapIngredients : DEFAULT_BREAD_WRAP_INGREDIENTS)
+    setNewIngName('')
+    setIngModalOpen(true)
+  }
+
+  function addIng() {
+    const trimmed = newIngName.trim()
+    if (!trimmed) return
+    const item = {
+      id: 'ing_' + Date.now(),
+      label: trimmed,
+      icon: newIngType === 'exclude' ? '🚫' : '✨',
+      type: newIngType,
+    }
+    setIngList([...ingList, item])
+    setNewIngName('')
+  }
+
+  function removeIng(index) {
+    setIngList(ingList.filter((_, i) => i !== index))
+  }
+
+  async function saveIngs() {
+    setSavingIng(true)
+    try {
+      await updateProfile(bizId, { breadWrapIngredients: ingList })
+      setIngModalOpen(false)
+    } catch (err) {
+      alert(err.message || 'Kaydedilemedi')
+    } finally {
+      setSavingIng(false)
+    }
+  }
   const nonComboProducts = useMemo(() => products.filter(p => !p.comboItems?.length), [products])
 
   async function handleFile(e) {
@@ -501,6 +543,22 @@ export default function MenuManager() {
               <span className="text-sm font-medium text-ink-600">
                 {editing.chef ? '👨‍🍳 "Şefin Önerisi" rozeti gösterilir' : 'Şefin önerisi rozeti'}
               </span>
+            </div>
+
+            {/* Ekmek / Dürüm malzeme seçimi aktif mi */}
+            <div className="rounded-xl border border-ink-200 bg-ink-50/60 p-3">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-xs font-bold text-ink-800 block">Ekmek / Dürüm Malzeme Seçimi</span>
+                  <span className="text-[11px] text-ink-400 block">Garson bu ürüne dokunduğunda malzeme çıkarma/ekstra seçimi açılsın</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={editing.isBreadOrWrap ?? isBreadOrWrap(editing)}
+                  onChange={e => setEditing({ ...editing, isBreadOrWrap: e.target.checked, customIngredientsEnabled: e.target.checked })}
+                  className="h-4 w-4 accent-brand-500 rounded shrink-0 cursor-pointer"
+                />
+              </label>
             </div>
 
             {/* Porsiyon/varyant editörü */}
