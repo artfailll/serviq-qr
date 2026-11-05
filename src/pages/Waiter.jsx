@@ -12,6 +12,36 @@ import { money } from '../lib/format'
 import { printTableBill } from '../lib/receipt'
 import AdminLogin, { useRoleAuthState, clearStaffSession, getStaffSession } from './AdminLogin'
 
+// Ekmek / Dürüm tespit yardımcısı — malzeme seçimi yapılacak ürünler
+export function isBreadOrWrap(p) {
+  if (!p) return false
+  const cat = String(p.categoryId || '').toLowerCase()
+  const name = String(p.name || '').toLowerCase()
+  const desc = String(p.desc || '').toLowerCase()
+  if (cat.includes('durum') || cat.includes('dürüm') || cat.includes('sandvic') || cat.includes('ekmek')) return true
+  if (/(ekmek|dürüm|durum|tombik|lavaş|lavas|sandviç|sandvic|burger|tost)/i.test(name)) return true
+  if (/(ekmek|dürüm|durum|lavaş)/i.test(desc)) return true
+  return false
+}
+
+// Garsonun tek dokunuşla seçebileceği pratik döner / dürüm malzemeleri
+export const BREAD_WRAP_INGREDIENTS = [
+  // Çıkarılacaklar (Olmasın)
+  { id: 'no_onion', label: 'Soğansız', icon: '🧅', type: 'exclude' },
+  { id: 'no_tomato', label: 'Domatessiz', icon: '🍅', type: 'exclude' },
+  { id: 'no_greens', label: 'Yeşilliksiz', icon: '🥬', type: 'exclude' },
+  { id: 'no_pickle', label: 'Turşusuz', icon: '🥒', type: 'exclude' },
+  { id: 'no_sauce', label: 'Sossuz', icon: '🥫', type: 'exclude' },
+  { id: 'no_spicy', label: 'Acısız', icon: '🌶️', type: 'exclude' },
+  // Tercihler & Ekstralar
+  { id: 'extra_sauce', label: 'Bol Soslu', icon: '🥫', type: 'prefer' },
+  { id: 'extra_spicy', label: 'Bol Acılı', icon: '🌶️', type: 'prefer' },
+  { id: 'with_fries', label: 'Patatesli', icon: '🍟', type: 'prefer' },
+  { id: 'only_meat', label: 'Sade (Yalnız Et)', icon: '🥩', type: 'prefer' },
+  { id: 'ketchup_mayo', label: 'Ketçap & Mayonez', icon: '🍶', type: 'prefer' },
+  { id: 'double_lavas', label: 'Çift Lavaş', icon: '🫓', type: 'prefer' },
+]
+
 export default function Waiter() {
   const bizId = useBusinessId()
   const status = useRoleAuthState('waiter')
@@ -92,14 +122,16 @@ function WaiterPOS({ bizId, onLogout }) {
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const qtyOf = (id) => cart.filter((i) => i.productId === id).reduce((s, i) => s + i.qty, 0)
 
-  function add(p, variant = null) {
+  function add(p, variant = null, note = '', qty = 1) {
     if (sendingRef.current) return
     const itemName = variant ? `${p.name} (${variant.name})` : p.name
     const itemPrice = variant ? Number(variant.price) : Number(p.price)
+    const itemNote = (note || '').trim()
+    const addQty = Math.max(1, Number(qty) || 1)
     setCart((prev) => {
-      const idx = prev.findIndex((i) => i.productId === p.id && i.name === itemName && !i.note)
-      if (idx >= 0) { const c = [...prev]; c[idx] = { ...c[idx], qty: c[idx].qty + 1 }; return c }
-      return [...prev, { productId: p.id, name: itemName, price: itemPrice, qty: 1, note: '' }]
+      const idx = prev.findIndex((i) => i.productId === p.id && i.name === itemName && (i.note || '') === itemNote)
+      if (idx >= 0) { const c = [...prev]; c[idx] = { ...c[idx], qty: c[idx].qty + addQty }; return c }
+      return [...prev, { productId: p.id, name: itemName, price: itemPrice, qty: addQty, note: itemNote }]
     })
     showToast(`${itemName} eklendi`)
   }
@@ -118,7 +150,8 @@ function WaiterPOS({ bizId, onLogout }) {
 
   function handleProductClick(p) {
     const vars = getVariants(p)
-    if (vars.length > 0) {
+    const bread = isBreadOrWrap(p)
+    if (vars.length > 0 || bread) {
       setPortionProduct(p)
     } else {
       add(p)
@@ -289,9 +322,9 @@ function WaiterPOS({ bizId, onLogout }) {
         </div>
       )}
 
-      {/* Porsiyon Seçim Penceresi */}
+      {/* Porsiyon & Ekmek/Dürüm Malzeme Seçim Penceresi */}
       {portionProduct && (
-        <PortionModal
+        <ProductCustomModal
           product={portionProduct}
           variants={getVariants(portionProduct)}
           cart={cart}
@@ -318,6 +351,7 @@ function ProductList({ items, qtyOf, onSelect, getVariants }) {
         const q = qtyOf(p.id)
         const variants = getVariants ? getVariants(p) : []
         const hasVariants = variants.length > 0
+        const bread = isBreadOrWrap(p)
         const prices = hasVariants ? variants.map((v) => Number(v.price)).filter(Number.isFinite) : [p.price]
         const minPrice = prices.length ? Math.min(...prices) : p.price
         const maxPrice = prices.length ? Math.max(...prices) : p.price
@@ -328,7 +362,11 @@ function ProductList({ items, qtyOf, onSelect, getVariants }) {
             type="button"
             onClick={() => onSelect(p)}
             className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left active:scale-[.99] transition-all ${
-              hasVariants ? 'bg-white border-amber-200/90 hover:border-amber-400' : 'bg-white border-ink-200 hover:border-brand-300'
+              hasVariants
+                ? 'bg-white border-amber-200/90 hover:border-amber-400'
+                : bread
+                ? 'bg-white border-emerald-200/90 hover:border-emerald-400'
+                : 'bg-white border-ink-200 hover:border-brand-300'
             }`}
           >
             <div className="grow min-w-0">
@@ -337,6 +375,11 @@ function ProductList({ items, qtyOf, onSelect, getVariants }) {
                 {hasVariants && (
                   <span className="text-[10px] uppercase tracking-wider font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full shrink-0">
                     Porsiyonlu
+                  </span>
+                )}
+                {bread && (
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shrink-0">
+                    İç Malzeme
                   </span>
                 )}
               </div>
@@ -366,6 +409,11 @@ function ProductList({ items, qtyOf, onSelect, getVariants }) {
                 <span>Porsiyon Seç</span>
                 <Plus className="h-3.5 w-3.5" />
               </span>
+            ) : bread ? (
+              <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0 shadow-sm transition-colors">
+                <span>Malzeme Seç</span>
+                <Plus className="h-3.5 w-3.5" />
+              </span>
             ) : (
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-500 text-white">
                 <Plus className="h-5 w-5" />
@@ -378,21 +426,142 @@ function ProductList({ items, qtyOf, onSelect, getVariants }) {
   )
 }
 
-function PortionModal({ product, variants, cart, onClose, onAdd }) {
-  if (!product || !variants.length) return null
+function ProductCustomModal({ product, variants, cart, onClose, onAdd }) {
+  if (!product) return null
+  const bread = isBreadOrWrap(product)
+  const hasVariants = variants.length > 0
 
+  const [selectedVariant, setSelectedVariant] = useState(hasVariants ? variants[0] : null)
+  const [selectedTags, setSelectedTags] = useState([])
+  const [extraNote, setExtraNote] = useState('')
+  const [qty, setQty] = useState(1)
+
+  const unitPrice = selectedVariant ? Number(selectedVariant.price) : Number(product.price)
+  const totalPrice = unitPrice * qty
+
+  const toggleTag = (label, isOnlyMeat = false) => {
+    if (isOnlyMeat) {
+      if (selectedTags.includes(label)) {
+        setSelectedTags(selectedTags.filter((t) => t !== label))
+      } else {
+        setSelectedTags([label])
+      }
+      return
+    }
+    let next = selectedTags.filter((t) => t !== 'Sade (Yalnız Et)')
+    if (next.includes(label)) {
+      next = next.filter((t) => t !== label)
+    } else {
+      next = [...next, label]
+    }
+    setSelectedTags(next)
+  }
+
+  const compiledNote = [
+    ...selectedTags,
+    extraNote.trim(),
+  ].filter(Boolean).join(', ')
+
+  const handleAdd = (forceStandard = false) => {
+    const finalNote = forceStandard ? '' : compiledNote
+    onAdd(product, selectedVariant, finalNote, qty)
+    onClose()
+  }
+
+  // Sadece porsiyonlu olan ve ekmek/dürüm olmayan ürünler için sade porsiyon seçici
+  if (hasVariants && !bread) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+        <div className="relative w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col space-y-4 max-h-[85vh] overflow-y-auto animate-fade-up">
+          <div className="flex items-start justify-between pb-3 border-b border-ink-100">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🍲</span>
+                <h3 className="font-display font-extrabold text-xl text-ink-900">{product.name}</h3>
+              </div>
+              <p className="text-xs font-semibold text-ink-500 mt-1">Lütfen sipariş edilecek porsiyonu seçin:</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid h-8 w-8 place-items-center rounded-full bg-ink-100 text-ink-500 hover:text-ink-800 hover:bg-ink-200 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="space-y-2.5 py-1">
+            {variants.map((v) => {
+              const inCartQty = cart
+                .filter((i) => i.productId === product.id && i.name === `${product.name} (${v.name})` && !i.note)
+                .reduce((s, i) => s + i.qty, 0)
+
+              return (
+                <button
+                  key={v.name}
+                  type="button"
+                  onClick={() => {
+                    onAdd(product, v, '', 1)
+                    onClose()
+                  }}
+                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-ink-50 hover:bg-brand-50 border-2 border-ink-200 hover:border-brand-500 active:scale-[0.98] transition-all text-left group"
+                >
+                  <div className="grow min-w-0 pr-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-display font-black text-ink-900 text-base group-hover:text-brand-700 transition-colors">
+                        {v.name}
+                      </span>
+                      {inCartQty > 0 && (
+                        <span className="text-[11px] font-extrabold bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full">
+                          Sepette: {inCartQty}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-ink-400 mt-0.5 font-medium">Dokunarak siparişe ekleyin</p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="font-display font-black text-brand-600 text-lg">
+                      {money(v.price)}
+                    </span>
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-500 text-white font-bold group-hover:bg-brand-600 shadow transition-colors">
+                      <Plus className="h-5 w-5" />
+                    </span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full py-3 rounded-xl border border-ink-200 bg-white hover:bg-ink-50 text-ink-600 font-bold text-sm transition-colors"
+            >
+              Kapat
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Ekmek & Dürüm Malzeme Seçimi Ekranı
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col space-y-4 max-h-[85vh] overflow-y-auto animate-fade-up">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col space-y-4 max-h-[90vh] overflow-y-auto animate-fade-up">
         {/* Başlık */}
         <div className="flex items-start justify-between pb-3 border-b border-ink-100">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xl">🍲</span>
-              <h3 className="font-display font-extrabold text-xl text-ink-900">{product.name}</h3>
+              <span className="text-2xl">🥙</span>
+              <div>
+                <h3 className="font-display font-black text-lg text-ink-900 leading-tight">{product.name}</h3>
+                <p className="text-xs font-bold text-emerald-700 mt-0.5">Ekmek / Dürüm Malzeme Tercihi</p>
+              </div>
             </div>
-            <p className="text-xs font-semibold text-ink-500 mt-1">Lütfen sipariş edilecek porsiyonu seçin:</p>
           </div>
           <button
             type="button"
@@ -403,58 +572,185 @@ function PortionModal({ product, variants, cart, onClose, onAdd }) {
           </button>
         </div>
 
-        {/* Porsiyon Listesi */}
-        <div className="space-y-2.5 py-1">
-          {variants.map((v) => {
-            const inCartQty = cart
-              .filter((i) => i.productId === product.id && i.name === `${product.name} (${v.name})` && !i.note)
-              .reduce((s, i) => s + i.qty, 0)
+        {/* Porsiyon seçimi (Adana Dürüm vb. için) */}
+        {hasVariants && (
+          <div>
+            <p className="text-[11px] font-extrabold text-ink-500 mb-1.5 uppercase tracking-wide">Porsiyon Seçimi:</p>
+            <div className="grid grid-cols-2 gap-2">
+              {variants.map((v) => {
+                const isSelected = selectedVariant?.name === v.name
+                return (
+                  <button
+                    key={v.name}
+                    type="button"
+                    onClick={() => setSelectedVariant(v)}
+                    className={`p-3 rounded-xl border-2 text-left font-bold text-sm transition-all flex items-center justify-between ${
+                      isSelected
+                        ? 'border-brand-500 bg-brand-50 text-brand-900 ring-2 ring-brand-300'
+                        : 'border-ink-200 bg-ink-50/70 text-ink-700 hover:border-ink-300'
+                    }`}
+                  >
+                    <span>{v.name}</span>
+                    <span className="text-brand-600 font-extrabold">{money(v.price)}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
-            return (
+        {/* İç Malzeme Seçim Alanı */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-extrabold text-ink-700 uppercase tracking-wide">
+              İçindekiler & Tercihler
+            </span>
+            {selectedTags.length > 0 && (
               <button
-                key={v.name}
                 type="button"
-                onClick={() => {
-                  onAdd(product, v)
-                  onClose()
-                }}
-                className="w-full flex items-center justify-between p-4 rounded-2xl bg-ink-50 hover:bg-brand-50 border-2 border-ink-200 hover:border-brand-500 active:scale-[0.98] transition-all text-left group"
+                onClick={() => setSelectedTags([])}
+                className="text-xs text-rose-600 hover:text-rose-800 font-bold"
               >
-                <div className="grow min-w-0 pr-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-display font-black text-ink-900 text-base group-hover:text-brand-700 transition-colors">
-                      {v.name}
-                    </span>
-                    {inCartQty > 0 && (
-                      <span className="text-[11px] font-extrabold bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full">
-                        Sepette: {inCartQty}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-ink-400 mt-0.5 font-medium">Dokunarak siparişe ekleyin</p>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="font-display font-black text-brand-600 text-lg">
-                    {money(v.price)}
-                  </span>
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-500 text-white font-bold group-hover:bg-brand-600 shadow transition-colors">
-                    <Plus className="h-5 w-5" />
-                  </span>
-                </div>
+                Seçimleri Sıfırla
               </button>
-            )
-          })}
+            )}
+          </div>
+
+          {/* Çıkarılacak Malzemeler */}
+          <div>
+            <p className="text-[11px] font-bold text-rose-700 mb-1.5 flex items-center gap-1">
+              <span>🚫</span> İstenmeyen Malzemeler (Çıkarılsın):
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {BREAD_WRAP_INGREDIENTS.filter((it) => it.type === 'exclude').map((it) => {
+                const active = selectedTags.includes(it.label)
+                return (
+                  <button
+                    key={it.id}
+                    type="button"
+                    onClick={() => toggleTag(it.label)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 ${
+                      active
+                        ? 'bg-rose-500 text-white shadow-sm ring-2 ring-rose-400 font-black'
+                        : 'bg-rose-50/70 text-rose-800 border border-rose-200 hover:bg-rose-100'
+                    }`}
+                  >
+                    <span>{it.icon}</span>
+                    <span>{it.label}</span>
+                    {active && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Tercihler / Ekstralar */}
+          <div>
+            <p className="text-[11px] font-bold text-emerald-700 mb-1.5 flex items-center gap-1">
+              <span>✨</span> Özel Tercihler & Ekstralar:
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {BREAD_WRAP_INGREDIENTS.filter((it) => it.type === 'prefer').map((it) => {
+                const active = selectedTags.includes(it.label)
+                return (
+                  <button
+                    key={it.id}
+                    type="button"
+                    onClick={() => toggleTag(it.label, it.id === 'only_meat')}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 ${
+                      active
+                        ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400 font-black'
+                        : 'bg-emerald-50/70 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                    }`}
+                  >
+                    <span>{it.icon}</span>
+                    <span>{it.label}</span>
+                    {active && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
 
-        {/* Kapat butonu */}
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full py-3 rounded-xl border border-ink-200 bg-white hover:bg-ink-50 text-ink-600 font-bold text-sm transition-colors"
-          >
-            Kapat
-          </button>
+        {/* Canlı Not Özeti & Ekstra Özel Not */}
+        <div className="space-y-2 pt-1">
+          {compiledNote ? (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-xl px-3 py-2 text-xs text-amber-900 font-bold flex items-center gap-2">
+              <span className="text-base">📝</span>
+              <div className="min-w-0">
+                <span className="text-amber-700 font-semibold text-[11px] block">Fişte Çıkacak Not:</span>
+                <span className="font-extrabold text-sm">{compiledNote}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-ink-400 italic px-1">Seçim yapılmazsa standart tam malzeme olarak hazırlanır.</p>
+          )}
+
+          <div className="flex items-center gap-2 rounded-xl border border-ink-200 bg-ink-50 px-3 py-2">
+            <StickyNote className="h-4 w-4 text-ink-400 shrink-0" />
+            <input
+              value={extraNote}
+              onChange={(e) => setExtraNote(e.target.value)}
+              placeholder="Ekstra özel istek (örn: Lavaş çift olsun)..."
+              className="bg-transparent text-xs w-full outline-none font-medium text-ink-800 placeholder:text-ink-400"
+            />
+          </div>
+        </div>
+
+        {/* Adet & Butonlar */}
+        <div className="pt-2 border-t border-ink-100 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-ink-600">Sipariş Adedi:</span>
+            <div className="flex items-center gap-2 bg-ink-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setQty(Math.max(1, qty - 1))}
+                className="grid h-8 w-8 place-items-center rounded-lg bg-white text-ink-800 font-bold shadow-xs active:scale-90"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <span className="font-display font-black text-base px-2">{qty}</span>
+              <button
+                type="button"
+                onClick={() => setQty(qty + 1)}
+                className="grid h-8 w-8 place-items-center rounded-lg bg-white text-ink-800 font-bold shadow-xs active:scale-90"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {compiledNote ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleAdd(true)}
+                  className="btn-ghost !py-3 font-bold text-xs text-ink-600 hover:text-ink-900 border border-ink-200 rounded-xl"
+                >
+                  Standart Ekle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAdd(false)}
+                  className="btn-primary !py-3 font-bold text-sm flex items-center justify-center gap-1.5 shadow-md active:scale-98"
+                >
+                  <Check className="h-4 w-4" />
+                  <span>Seçimle Ekle ({money(totalPrice)})</span>
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleAdd(false)}
+                className="col-span-full btn-primary !py-3.5 font-bold text-sm flex items-center justify-center gap-1.5 shadow-md active:scale-98"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Sepete Ekle ({money(totalPrice)})</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
