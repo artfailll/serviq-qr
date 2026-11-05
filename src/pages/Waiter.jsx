@@ -36,15 +36,31 @@ function WaiterPOS({ bizId, onLogout }) {
   const tables = useTables(bizId)
   const { staffId } = useActiveStaff(bizId)
 
+  const portionsEnabled = profile?.portionsEnabled !== false
+
+  const getVariants = (p) => {
+    if (!portionsEnabled) return []
+    if (p?.portionsEnabled === false) return []
+    return Array.isArray(p?.variants) ? p.variants.filter((v) => v && v.name && Number.isFinite(Number(v.price))) : []
+  }
+
   const [table, setTable] = useState(null)      // seçili masa
   const [cart, setCart] = useState([])           // {productId,name,price,qty,note}
   const [query, setQuery] = useState('')
   const [activeCat, setActiveCat] = useState(null)
   const [cartOpen, setCartOpen] = useState(false)
+  const [portionProduct, setPortionProduct] = useState(null)
   const [sent, setSent] = useState(false)
+  const [toastMsg, setToastMsg] = useState('')
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
   const sendingRef = useRef(false)
+
+  const showToast = (txt) => {
+    setToastMsg(txt)
+    setTimeout(() => setToastMsg(''), 1800)
+  }
+
   useEffect(() => {
     if (!sending) return
     const warn = e => { e.preventDefault(); e.returnValue = '' }
@@ -62,21 +78,39 @@ function WaiterPOS({ bizId, onLogout }) {
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return null
-    return products.filter((p) => p.available && p.name.toLowerCase().includes(q))
-  }, [query, products])
+    return products.filter((p) => {
+      if (!p.available) return false
+      if (p.name.toLowerCase().includes(q)) return true
+      const vars = getVariants(p)
+      return vars.some((v) => v.name.toLowerCase().includes(q))
+    })
+  }, [query, products, portionsEnabled])
 
   const count = cart.reduce((s, i) => s + i.qty, 0)
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const qtyOf = (id) => cart.filter((i) => i.productId === id).reduce((s, i) => s + i.qty, 0)
 
-  function add(p) {
+  function add(p, variant = null) {
     if (sendingRef.current) return
+    const itemName = variant ? `${p.name} (${variant.name})` : p.name
+    const itemPrice = variant ? Number(variant.price) : Number(p.price)
     setCart((prev) => {
-      const idx = prev.findIndex((i) => i.productId === p.id && !i.note)
+      const idx = prev.findIndex((i) => i.productId === p.id && i.name === itemName && !i.note)
       if (idx >= 0) { const c = [...prev]; c[idx] = { ...c[idx], qty: c[idx].qty + 1 }; return c }
-      return [...prev, { productId: p.id, name: p.name, price: p.price, qty: 1, note: '' }]
+      return [...prev, { productId: p.id, name: itemName, price: itemPrice, qty: 1, note: '' }]
     })
+    showToast(`${itemName} eklendi`)
   }
+
+  function handleProductClick(p) {
+    const vars = getVariants(p)
+    if (vars.length > 0) {
+      setPortionProduct(p)
+    } else {
+      add(p)
+    }
+  }
+
   function changeQty(i, d) {
     if (sendingRef.current) return
     setCart((prev) => { const c = [...prev]; const n = c[i].qty + d; if (n <= 0) c.splice(i, 1); else c[i] = { ...c[i], qty: n }; return c })
@@ -161,12 +195,12 @@ function WaiterPOS({ bizId, onLogout }) {
       {/* Ürünler */}
       <div className="mx-auto max-w-3xl px-4">
         {results ? (
-          <ProductList items={results} qtyOf={qtyOf} add={add} />
+          <ProductList items={results} qtyOf={qtyOf} onSelect={handleProductClick} getVariants={getVariants} />
         ) : (
           categories.map((c) => (
             <section key={c.id} id={'cat-' + c.id} className="pt-4" style={{ scrollMarginTop: 120 }}>
               <h2 className="font-display font-bold text-ink-800 mb-2 px-1">{c.name}</h2>
-              <ProductList items={grouped[c.id] || []} qtyOf={qtyOf} add={add} />
+              <ProductList items={grouped[c.id] || []} qtyOf={qtyOf} onSelect={handleProductClick} getVariants={getVariants} />
             </section>
           ))
         )}
@@ -184,33 +218,174 @@ function WaiterPOS({ bizId, onLogout }) {
         </div>
       )}
 
+      {/* Porsiyon Seçim Penceresi */}
+      {portionProduct && (
+        <PortionModal
+          product={portionProduct}
+          variants={getVariants(portionProduct)}
+          cart={cart}
+          onClose={() => setPortionProduct(null)}
+          onAdd={add}
+        />
+      )}
+
       {cartOpen && (
         <CartSheet cart={cart} total={total} tableNo={table.no} sending={sending} sendError={sendError}
           onClose={() => { if (!sendingRef.current) setCartOpen(false) }} changeQty={changeQty} setNote={setNote} send={send} />
       )}
       {sent && <Toast text="Sipariş mutfağa gönderildi!" />}
+      {toastMsg && <Toast text={toastMsg} />}
     </div>
   )
 }
 
-function ProductList({ items, qtyOf, add }) {
+function ProductList({ items, qtyOf, onSelect, getVariants }) {
   if (!items.length) return <p className="text-ink-400 text-sm py-4 px-1">Ürün yok.</p>
   return (
     <div className="space-y-2">
       {items.map((p) => {
         const q = qtyOf(p.id)
+        const variants = getVariants ? getVariants(p) : []
+        const hasVariants = variants.length > 0
+        const prices = hasVariants ? variants.map((v) => Number(v.price)).filter(Number.isFinite) : [p.price]
+        const minPrice = prices.length ? Math.min(...prices) : p.price
+        const maxPrice = prices.length ? Math.max(...prices) : p.price
+
         return (
-          <button key={p.id} onClick={() => add(p)}
-            className="w-full flex items-center gap-3 rounded-xl bg-white border border-ink-200 p-3 text-left active:scale-[.99] transition-transform">
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onSelect(p)}
+            className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left active:scale-[.99] transition-all ${
+              hasVariants ? 'bg-white border-amber-200/90 hover:border-amber-400' : 'bg-white border-ink-200 hover:border-brand-300'
+            }`}
+          >
             <div className="grow min-w-0">
-              <p className="font-semibold text-ink-800 truncate">{p.name}</p>
-              <p className="text-sm text-brand-600 font-bold">{money(p.price)}</p>
+              <div className="flex items-center gap-2">
+                <p className="font-semibold text-ink-800 truncate">{p.name}</p>
+                {hasVariants && (
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full shrink-0">
+                    Porsiyonlu
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-sm text-brand-600 font-bold">
+                  {hasVariants && minPrice !== maxPrice
+                    ? `${money(minPrice)} – ${money(maxPrice)}`
+                    : money(hasVariants ? minPrice : p.price)
+                  }
+                </p>
+                {hasVariants && (
+                  <span className="text-xs text-ink-400 truncate">
+                    ({variants.map((v) => v.name).join(', ')})
+                  </span>
+                )}
+              </div>
             </div>
-            {q > 0 && <span className="grid h-6 min-w-6 px-1.5 place-items-center rounded-full bg-brand-100 text-brand-700 text-xs font-extrabold">{q}</span>}
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-500 text-white"><Plus className="h-5 w-5" /></span>
+
+            {q > 0 && (
+              <span className="grid h-6 min-w-6 px-1.5 place-items-center rounded-full bg-brand-100 text-brand-700 text-xs font-extrabold shrink-0">
+                {q}
+              </span>
+            )}
+
+            {hasVariants ? (
+              <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shrink-0 shadow-sm transition-colors">
+                <span>Porsiyon Seç</span>
+                <Plus className="h-3.5 w-3.5" />
+              </span>
+            ) : (
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-500 text-white">
+                <Plus className="h-5 w-5" />
+              </span>
+            )}
           </button>
         )
       })}
+    </div>
+  )
+}
+
+function PortionModal({ product, variants, cart, onClose, onAdd }) {
+  if (!product || !variants.length) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col space-y-4 max-h-[85vh] overflow-y-auto animate-fade-up">
+        {/* Başlık */}
+        <div className="flex items-start justify-between pb-3 border-b border-ink-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🍲</span>
+              <h3 className="font-display font-extrabold text-xl text-ink-900">{product.name}</h3>
+            </div>
+            <p className="text-xs font-semibold text-ink-500 mt-1">Lütfen sipariş edilecek porsiyonu seçin:</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-8 w-8 place-items-center rounded-full bg-ink-100 text-ink-500 hover:text-ink-800 hover:bg-ink-200 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Porsiyon Listesi */}
+        <div className="space-y-2.5 py-1">
+          {variants.map((v) => {
+            const inCartQty = cart
+              .filter((i) => i.productId === product.id && i.name === `${product.name} (${v.name})` && !i.note)
+              .reduce((s, i) => s + i.qty, 0)
+
+            return (
+              <button
+                key={v.name}
+                type="button"
+                onClick={() => {
+                  onAdd(product, v)
+                  onClose()
+                }}
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-ink-50 hover:bg-brand-50 border-2 border-ink-200 hover:border-brand-500 active:scale-[0.98] transition-all text-left group"
+              >
+                <div className="grow min-w-0 pr-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-display font-black text-ink-900 text-base group-hover:text-brand-700 transition-colors">
+                      {v.name}
+                    </span>
+                    {inCartQty > 0 && (
+                      <span className="text-[11px] font-extrabold bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full">
+                        Sepette: {inCartQty}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-ink-400 mt-0.5 font-medium">Dokunarak siparişe ekleyin</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="font-display font-black text-brand-600 text-lg">
+                    {money(v.price)}
+                  </span>
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-500 text-white font-bold group-hover:bg-brand-600 shadow transition-colors">
+                    <Plus className="h-5 w-5" />
+                  </span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Kapat butonu */}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-3 rounded-xl border border-ink-200 bg-white hover:bg-ink-50 text-ink-600 font-bold text-sm transition-colors"
+          >
+            Kapat
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
