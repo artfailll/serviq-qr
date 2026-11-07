@@ -1,15 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Delete, CornerDownLeft, X, Keyboard, Hash, Check } from 'lucide-react'
-
-// Dokunmatik cihaz kontrolü
-function hasTouchCapability() {
-  if (typeof window === 'undefined') return false
-  return (
-    'ontouchstart' in window ||
-    (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
-    (navigator.msMaxTouchPoints && navigator.msMaxTouchPoints > 0)
-  )
-}
+import { isTouchComputer } from '../lib/touchDevice'
 
 // React onChange tetikleyicisi
 function setNativeInputValue(element, nextValue, cursorOffset = null) {
@@ -86,7 +77,8 @@ export default function TouchKeyboard() {
 
   // Global dokunmatik / pointer dinleyicileri
   useEffect(() => {
-    if (!hasTouchCapability()) return
+    // Yalnızca dokunmatik BİLGİSAYARLARDA dinle (tablet/telefonlar hariç)
+    if (!isTouchComputer()) return
 
     function onPointerDown(e) {
       lastPointerTypeRef.current = e.pointerType || 'mouse'
