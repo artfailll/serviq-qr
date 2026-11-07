@@ -81,6 +81,18 @@ async function main(args = process.argv.slice(2)) {
   fs.writeFileSync(path.join(out, 'NFC-BAGLANTILARI.txt'), `${menu.profile.name}\nEtiket kaydı: URL (NDEF URI). QR ile aynı masa adresi.\n\n` + tables.map(t => `${t.name || `Masa ${t.no}`}\n${tableUrl(o.id, t.no)}\n`).join('\n'))
   fs.writeFileSync(path.join(out, 'KURULUM-KONTROL.txt'), `${menu.profile.name}\nYönetim: https://serviq.com.tr/yonetim?isletme=${encodeURIComponent(o.id)}\nKasa: https://serviq.com.tr/kasa?isletme=${encodeURIComponent(o.id)}\nGarson: https://serviq.com.tr/garson?isletme=${encodeURIComponent(o.id)}\n\nTESLİMDEN ÖNCE:\n1. Gerçek menü, fiyat ve masaları girin.\n2. Ayrı internet bağlantılı müşteri telefonundan test siparişi verin.\n3. Kasa ve yönetimde aynı sipariş/masa/tutarı görün.\n4. Mutfak, servis, ödeme durumlarını doğrulayın.\n5. Bağlantı kesilince sahte başarı görünmediğini doğrulayın.\n6. Her QR ve NFC etiketini masaya yapıştırmadan okutun.\n7. İşletmeler arası erişim yetkisini test edin.\n`)
 
+  // Kurulu restoranlar listesini güncelle
+  try {
+    const { registerRestaurant } = require('./registry.cjs')
+    registerRestaurant({
+      id: o.id,
+      name: menu.profile.name,
+      tableCount: tables.length,
+      password: adminPassword,
+      createdAt: menu.seededAt || Date.now()
+    })
+  } catch {}
+
   const dateStr = new Date().toLocaleString('tr-TR')
   const credentialsText = `======================================================================
                  SERVIQ - RESTORAN GİRİŞ BİLGİLERİ
