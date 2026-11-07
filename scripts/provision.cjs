@@ -5,15 +5,34 @@ const { pathToFileURL } = require('node:url')
 const ROOT = path.resolve(__dirname, '..')
 require('dotenv').config({ path: process.env.SERVIQ_ENV_FILE || path.join(ROOT, '.env'), quiet: true })
 
+function findDesktopDir() {
+  const home = process.env.USERPROFILE || process.env.HOME || ''
+  if (!home) return null
+  const candidates = [
+    path.join(home, 'Desktop'),
+    path.join(home, 'Masaüstü'),
+    path.join(home, 'OneDrive', 'Desktop'),
+    path.join(home, 'OneDrive', 'Masaüstü'),
+  ]
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p
+  }
+  return null
+}
+
 function parseArgs(args) {
   const onlyQR = args[0] === '--only-qr'
-  const [name, id, count = '10', color = '#f97316'] = onlyQR ? ['', args[1]] : args
+  const [name, id, count = '10', color = '#f97316', password] = onlyQR ? ['', args[1]] : args
   if (!id || id.length > 100 || /[.#$\[\]/\u0000-\u001f\u007f]/u.test(id)) throw new Error('Geçersiz işletme ID.')
   if (!onlyQR && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) throw new Error('Yeni işletme ID: küçük harf, rakam ve tire kullanın.')
   if (!onlyQR && (!name?.trim() || name.length > 100)) throw new Error('İşletme adı 1–100 karakter olmalı.')
   if (!onlyQR && (!/^\d+$/.test(count) || Number(count) < 1 || Number(count) > 500)) throw new Error('Masa sayısı 1–500 arasında olmalı.')
   if (!/^#[0-9a-f]{6}$/i.test(color)) throw new Error('Renk #112233 biçiminde olmalı.')
-  return { onlyQR, name, id, count: Number(count), color }
+  const res = { onlyQR, name, id, count: Number(count), color }
+  if (password !== undefined && String(password).trim() !== '') {
+    res.password = String(password).trim()
+  }
+  return res
 }
 async function request(url, options = {}) {
   const response = await fetch(url, { ...options, signal: AbortSignal.timeout(15000) })
@@ -27,6 +46,7 @@ async function main(args = process.argv.slice(2)) {
   const endpoint = new URL(`${db.replace(/\/$/, '')}/businesses/${encodeURIComponent(o.id)}.json`)
   if (process.env.SERVIQ_FIREBASE_TOKEN) endpoint.searchParams.set('auth', process.env.SERVIQ_FIREBASE_TOKEN)
   let menu
+  let adminPassword = o.password || process.env.SERVIQ_ADMIN_PASSWORD || '1234'
   if (o.onlyQR) {
     const menuURL = new URL(endpoint)
     menuURL.pathname = menuURL.pathname.replace(/\.json$/, '/menu.json')
@@ -39,8 +59,9 @@ async function main(args = process.argv.slice(2)) {
     if (!etag) throw new Error('Güvenli kurulum için ETag alınamadı.')
     const tables = Object.fromEntries(Array.from({ length: o.count }, (_, i) => [`masa${i + 1}`, { no: i + 1, name: `Masa ${i + 1}` }]))
     menu = { profile: { name: o.name.trim(), brandColor: o.color }, tables, seededAt: Date.now() }
+    const config = { password: adminPassword }
     // Atomic create: prevent collisions and never reset an existing menu.
-    await request(endpoint, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'if-match': etag }, body: JSON.stringify({ menu }) })
+    await request(endpoint, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'if-match': etag }, body: JSON.stringify({ menu, config }) })
     console.log('İşletme kaydedildi. Gerçek menü ve fiyatlar yönetimden girilmeli; örnek ürün eklenmedi.')
   }
   const { tableUrl } = await import(pathToFileURL(path.join(ROOT, 'src/lib/tableQr.js')))
@@ -59,6 +80,63 @@ async function main(args = process.argv.slice(2)) {
   fs.writeFileSync(path.join(out, 'QR-YAZDIR.html'), printDocument)
   fs.writeFileSync(path.join(out, 'NFC-BAGLANTILARI.txt'), `${menu.profile.name}\nEtiket kaydı: URL (NDEF URI). QR ile aynı masa adresi.\n\n` + tables.map(t => `${t.name || `Masa ${t.no}`}\n${tableUrl(o.id, t.no)}\n`).join('\n'))
   fs.writeFileSync(path.join(out, 'KURULUM-KONTROL.txt'), `${menu.profile.name}\nYönetim: https://serviq.com.tr/yonetim?isletme=${encodeURIComponent(o.id)}\nKasa: https://serviq.com.tr/kasa?isletme=${encodeURIComponent(o.id)}\nGarson: https://serviq.com.tr/garson?isletme=${encodeURIComponent(o.id)}\n\nTESLİMDEN ÖNCE:\n1. Gerçek menü, fiyat ve masaları girin.\n2. Ayrı internet bağlantılı müşteri telefonundan test siparişi verin.\n3. Kasa ve yönetimde aynı sipariş/masa/tutarı görün.\n4. Mutfak, servis, ödeme durumlarını doğrulayın.\n5. Bağlantı kesilince sahte başarı görünmediğini doğrulayın.\n6. Her QR ve NFC etiketini masaya yapıştırmadan okutun.\n7. İşletmeler arası erişim yetkisini test edin.\n`)
+
+  const dateStr = new Date().toLocaleString('tr-TR')
+  const credentialsText = `======================================================================
+                 SERVIQ - RESTORAN GİRİŞ BİLGİLERİ
+======================================================================
+
+Restoran Adı      : ${menu.profile.name}
+İşletme Kodu (ID) : ${o.id}
+Masa Sayısı       : ${tables.length} Masa
+Yönetici Şifresi  : ${adminPassword}
+Kurulum Tarihi    : ${dateStr}
+
+----------------------------------------------------------------------
+1. YÖNETİM PANELİ (Menü Düzenleme, Fiyatlar, Raporlar, Masalar)
+----------------------------------------------------------------------
+Giriş Adresi      : https://serviq.com.tr/yonetim?isletme=${encodeURIComponent(o.id)}
+Giriş Şifresi     : ${adminPassword}
+
+----------------------------------------------------------------------
+2. KASA EKRANI (Canlı Sipariş Takibi, Hesap Alma, Fiş Yazdırma)
+----------------------------------------------------------------------
+Giriş Adresi      : https://serviq.com.tr/kasa?isletme=${encodeURIComponent(o.id)}
+Giriş Şifresi/PIN : ${adminPassword}
+
+----------------------------------------------------------------------
+3. GARSON EKRANI (Mobil Sipariş Alma, Çağrılar)
+----------------------------------------------------------------------
+Giriş Adresi      : https://serviq.com.tr/garson?isletme=${encodeURIComponent(o.id)}
+Giriş Şifresi/PIN : ${adminPassword}
+
+----------------------------------------------------------------------
+4. MÜŞTERİ QR MENÜ
+----------------------------------------------------------------------
+Genel Menü Linki  : https://serviq.com.tr/menu?isletme=${encodeURIComponent(o.id)}
+Örnek Masa 1      : https://serviq.com.tr/menu?isletme=${encodeURIComponent(o.id)}&masa=1
+
+----------------------------------------------------------------------
+5. QR KOD BASKI DOSYALARI
+----------------------------------------------------------------------
+Masa QR kodlarını yazdırmak için kurulum paketindeki QR-YAZDIR.html
+dosyasını tarayıcınızda açıp doğrudan yazdırabilirsiniz.
+Paket Klasörü     : ${out}
+
+======================================================================
+Destek ve Bilgi: https://serviq.com.tr
+======================================================================
+`
+  fs.writeFileSync(path.join(out, 'GIRIS-BILGILERI.txt'), credentialsText, 'utf8')
+
+  const desktopDir = findDesktopDir()
+  if (desktopDir && !o.onlyQR) {
+    const safeName = (menu.profile.name || o.id).trim().replace(/[/\\?%*:|"<>]/g, '_')
+    const desktopFilePath = path.join(desktopDir, `${safeName} - GIRIS BILGILERI.txt`)
+    fs.writeFileSync(desktopFilePath, credentialsText, 'utf8')
+    console.log(`Giriş bilgileri masaüstüne kaydedildi: ${desktopFilePath}`)
+  }
+
   console.log(`QR/NFC dosyaları hazır: ${out}`)
   return out
 }

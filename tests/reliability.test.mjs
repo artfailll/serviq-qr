@@ -1,5 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+import os from 'node:os'
 import { build } from 'esbuild'
 import { brandedTableQR, tableUrl } from '../src/lib/tableQr.js'
 import provision from '../scripts/provision.cjs'
@@ -173,4 +176,41 @@ test('default profile allows ordering; catalog mode disables customer order', as
   const portionsOff = { ...DEFAULT_PROFILE, portionsEnabled: false }
   assert.equal(portionsOn.portionsEnabled !== false, true)
   assert.equal(portionsOff.portionsEnabled !== false, false)
+})
+
+test('provision accepts management PIN and writes password to config and credentials files', async () => {
+  const setup = provision.parseArgs(['Cafe', 'cafe', '10', '#112233', '9876'])
+  assert.deepEqual(setup, { onlyQR: false, name: 'Cafe', id: 'cafe', count: 10, color: '#112233', password: '9876' })
+
+  const originalFetch = globalThis.fetch
+  const previousURL = process.env.VITE_FIREBASE_DATABASE_URL
+  const previousOutDir = process.env.SERVIQ_OUTPUT_DIR
+  const tmpOut = fs.mkdtempSync(path.join(os.tmpdir(), 'serviq-test-'))
+  process.env.VITE_FIREBASE_DATABASE_URL = 'https://database.example.invalid'
+  process.env.SERVIQ_OUTPUT_DIR = tmpOut
+
+  let putBody = null
+  globalThis.fetch = async (url, options) => {
+    if (options.method === 'PUT') {
+      putBody = JSON.parse(options.body)
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    }
+    return new Response(JSON.stringify(null), { status: 200, headers: { etag: 'new-etag' } })
+  }
+
+  try {
+    const outDir = await provision.main(['Cafe Test', 'cafe-test', '5', '#112233', 'pass123'])
+    assert.ok(fs.existsSync(path.join(outDir, 'GIRIS-BILGILERI.txt')), 'GIRIS-BILGILERI.txt must exist')
+    const txt = fs.readFileSync(path.join(outDir, 'GIRIS-BILGILERI.txt'), 'utf8')
+    assert.match(txt, /pass123/)
+    assert.match(txt, /cafe-test/)
+    assert.equal(putBody.config.password, 'pass123')
+  } finally {
+    globalThis.fetch = originalFetch
+    if (previousURL === undefined) delete process.env.VITE_FIREBASE_DATABASE_URL
+    else process.env.VITE_FIREBASE_DATABASE_URL = previousURL
+    if (previousOutDir === undefined) delete process.env.SERVIQ_OUTPUT_DIR
+    else process.env.SERVIQ_OUTPUT_DIR = previousOutDir
+    fs.rmSync(tmpOut, { recursive: true, force: true })
+  }
 })

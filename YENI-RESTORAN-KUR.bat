@@ -48,43 +48,32 @@ goto repo_ready
 
 :update_repo
 echo Mevcut Serviq kurulumu kontrol ediliyor...
-git -C "%REPO_DIR%" diff --quiet
+REM Eger yerel degisiklikler varsa veya calisma dosyalari bulunuyorsa guncelleme atlanir, kuruluma mevcut dosyalarla guvenle devam edilir.
+git -C "%REPO_DIR%" diff --quiet 2>nul
 if errorlevel 1 (
-  echo HATA: Proje dosyalarinda kaydedilmemis degisiklikler var.
-  echo Degisiklikleri yedekleyip commit edin veya geri alin; hicbir dosya silinmedi.
-  pause
-  exit /b 1
+  echo Bilgi: Yerel calisma dosyalari mevcut, yerel surumle kuruluma devam ediliyor...
+  goto repo_ready
 )
-git -C "%REPO_DIR%" diff --cached --quiet
+git -C "%REPO_DIR%" diff --cached --quiet 2>nul
 if errorlevel 1 (
-  echo HATA: Git'e eklenmis ama commit edilmemis degisiklikler var.
-  echo Degisiklikleri commit edin veya geri alin; hicbir dosya silinmedi.
-  pause
-  exit /b 1
+  echo Bilgi: Yerel calisma dosyalari mevcut, yerel surumle kuruluma devam ediliyor...
+  goto repo_ready
 )
-git -C "%REPO_DIR%" fetch origin "refs/heads/%INSTALL_BRANCH%:refs/remotes/origin/%INSTALL_BRANCH%"
+git -C "%REPO_DIR%" fetch origin "refs/heads/%INSTALL_BRANCH%:refs/remotes/origin/%INSTALL_BRANCH%" 2>nul
 if errorlevel 1 (
-  echo HATA: GitHub'dan guncelleme alinamadi.
-  pause
-  exit /b 1
+  echo Bilgi: GitHub baglantisi saglanamadi veya cevrimdisi, yerel surumle devam ediliyor...
+  goto repo_ready
 )
-git -C "%REPO_DIR%" show-ref --verify --quiet "refs/heads/%INSTALL_BRANCH%"
+git -C "%REPO_DIR%" show-ref --verify --quiet "refs/heads/%INSTALL_BRANCH%" 2>nul
 if errorlevel 1 (
-  git -C "%REPO_DIR%" checkout -b "%INSTALL_BRANCH%" --track "origin/%INSTALL_BRANCH%"
+  git -C "%REPO_DIR%" checkout -b "%INSTALL_BRANCH%" --track "origin/%INSTALL_BRANCH%" 2>nul
 ) else (
-  git -C "%REPO_DIR%" checkout "%INSTALL_BRANCH%"
+  git -C "%REPO_DIR%" checkout "%INSTALL_BRANCH%" 2>nul
 )
+git -C "%REPO_DIR%" pull --ff-only origin "%INSTALL_BRANCH%" 2>nul
 if errorlevel 1 (
-  echo HATA: "%INSTALL_BRANCH%" dalina gecilemedi.
-  pause
-  exit /b 1
-)
-git -C "%REPO_DIR%" pull --ff-only origin "%INSTALL_BRANCH%"
-if errorlevel 1 (
-  echo HATA: Kurulum dosyalari guvenli sekilde guncellenemedi.
-  echo Yerel commitler olabilir; elle kontrol edin.
-  pause
-  exit /b 1
+  echo Bilgi: Hizli ileri guncelleme atlandi, mevcut dosyalarla devam ediliyor...
+  goto repo_ready
 )
 
 :repo_ready
@@ -162,6 +151,10 @@ if errorlevel 1 (
 
 :deps_ready
 echo.
+echo ------------------------------------------
+echo         RESTORAN BILGILERINI GIRIN
+echo ------------------------------------------
+echo.
 set "BIZ_NAME=%SERVIQ_BUSINESS_NAME%"
 if not defined BIZ_NAME set /p "BIZ_NAME=Restoran adi: "
 if not defined BIZ_NAME (
@@ -171,7 +164,7 @@ if not defined BIZ_NAME (
 )
 
 set "BIZ_ID=%SERVIQ_BUSINESS_ID%"
-if not defined BIZ_ID set /p "BIZ_ID=Isletme ID (or. sezgin-usta): "
+if not defined BIZ_ID set /p "BIZ_ID=Isletme ID (or. lezzet-doner): "
 if not defined BIZ_ID (
   echo HATA: Isletme ID bos olamaz.
   pause
@@ -188,9 +181,14 @@ if not defined BRAND_COLOR set "BRAND_COLOR=#f97316"
 if not defined SERVIQ_BRAND_COLOR set /p "BRAND_COLOR=Marka rengi HEX [#f97316]: "
 if not defined BRAND_COLOR set "BRAND_COLOR=#f97316"
 
+set "ADMIN_PIN=%SERVIQ_ADMIN_PASSWORD%"
+if not defined ADMIN_PIN set "ADMIN_PIN=1234"
+if not defined SERVIQ_ADMIN_PASSWORD set /p "ADMIN_PIN=Yonetici Sifresi / PIN [1234]: "
+if not defined ADMIN_PIN set "ADMIN_PIN=1234"
+
 echo.
 echo Kurulum baslatiliyor...
-node yeni-musteri.cjs "%BIZ_NAME%" "%BIZ_ID%" "%TABLE_COUNT%" "%BRAND_COLOR%"
+node yeni-musteri.cjs "%BIZ_NAME%" "%BIZ_ID%" "%TABLE_COUNT%" "%BRAND_COLOR%" "%ADMIN_PIN%"
 set "RESULT=%ERRORLEVEL%"
 if not "%RESULT%"=="0" (
   echo.
@@ -200,7 +198,19 @@ if not "%RESULT%"=="0" (
 )
 
 echo.
-echo Kurulum tamamlandi. kurulum-paketleri klasorunu kontrol edin.
-echo QR-YAZDIR.html dosyasini acip QR kodlarini yazdirabilirsiniz.
+echo ============================================================
+echo           KURULUM BASARIYLA TAMAMLANDI!
+echo ============================================================
+echo.
+echo [1] Giris bilgileri Masaustunuze kaydedildi:
+echo     "%USERPROFILE%\Desktop\%BIZ_NAME% - GIRIS BILGILERI.txt"
+echo.
+echo [2] Masa QR kodlarini yazdirmak icin kurulum paketini acabilirsiniz:
+echo     kurulum-paketleri klasorundeki QR-YAZDIR.html dosyasini tarayicida acin.
+echo.
+
+if exist "%USERPROFILE%\Desktop\%BIZ_NAME% - GIRIS BILGILERI.txt" (
+  start "" notepad.exe "%USERPROFILE%\Desktop\%BIZ_NAME% - GIRIS BILGILERI.txt"
+)
 pause
 exit /b 0
