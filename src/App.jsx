@@ -7,6 +7,7 @@ import { UtensilsCrossed } from 'lucide-react'
 import ErrorBoundary from './components/ErrorBoundary'
 import StaffAlerts from './components/StaffAlerts'
 import ConnectionStatus from './components/ConnectionStatus'
+import TouchKeyboard from './components/TouchKeyboard'
 
 const Home     = lazy(() => import('./pages/Home'))
 const Customer = lazy(() => import('./pages/Customer'))
@@ -37,6 +38,7 @@ function NoBusiness() {
 
   return (
     <div className="min-h-screen grid place-items-center bg-ink-50 p-4">
+      <TouchKeyboard />
       <div className="card p-8 max-w-md w-full text-center shadow-lg">
         <div className="grid h-16 w-16 place-items-center rounded-2xl bg-brand-100 text-brand-600 mx-auto mb-4">
           <UtensilsCrossed className="h-8 w-8" />
@@ -119,6 +121,7 @@ function AppWithBusiness({ bizId }) {
       <ErrorBoundary>
         <ConnectionStatus />
         <StaffAlerts />
+        <TouchKeyboard />
         <Suspense fallback={<Loader />}>
           <Routes>
             <Route path="/"              element={<Home />} />
