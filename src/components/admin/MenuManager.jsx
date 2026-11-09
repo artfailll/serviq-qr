@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { Plus, Pencil, Flame, Trash2, ImageOff, Upload, Loader2, ScanLine, Check, X, AlertCircle, Sparkles, Tag, Minus } from 'lucide-react'
 import { fileToCompressedDataURL, urlToCompressedDataURL } from '../../lib/image'
+import { getAiAuthHeaders } from '../../lib/apiAuth'
 import {
   useCategories, useProducts,
   addProduct, updateProduct, removeProduct, toggleProduct,
@@ -126,7 +127,7 @@ export default function MenuManager() {
     try {
       const resp = await fetch('/.netlify/functions/generate-image', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAiAuthHeaders(bizId),
         body: JSON.stringify({ name: editing.name, desc: editing.desc, category: categories.find(c => c.id === editing.categoryId)?.name }),
       })
       const data = await resp.json()
@@ -149,7 +150,7 @@ export default function MenuManager() {
     try {
       const resp = await fetch('/.netlify/functions/suggest-nutrition', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAiAuthHeaders(bizId),
         body: JSON.stringify({ name: editing.name, desc: editing.desc, category: categories.find(c => c.id === editing.categoryId)?.name }),
       })
       const data = await resp.json()
@@ -198,7 +199,7 @@ export default function MenuManager() {
 
       const resp = await fetch('/.netlify/functions/scan-menu', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAiAuthHeaders(bizId),
         body: JSON.stringify({ imageBase64: base64, mimeType: file.type }),
       })
 

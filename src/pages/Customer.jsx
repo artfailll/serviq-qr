@@ -106,7 +106,7 @@ export default function Customer() {
       setTranslating(true)
       try {
         const resp = await fetch('/.netlify/functions/translate-menu', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-serviq-biz': bizId || '' },
           body: JSON.stringify({
             lang,
             items: products.map(p2 => ({ id: p2.id, name: p2.name, desc: p2.desc || '' })),

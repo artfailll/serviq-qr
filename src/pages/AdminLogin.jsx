@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Lock, Eye, EyeOff, UtensilsCrossed, ShieldCheck } from 'lucide-react'
 import { useBusinessId, useValue, useStaff, setActiveStaffId, startShift } from '../lib/store'
 import { IS_DEMO } from '../lib/db'
+import { setAdminToken } from '../lib/apiAuth'
 
 // Oturum boyunca girişi hatırla (sekme kapanınca sıfırlanır)
 const SESSION_KEY = 'sofra_admin_auth'
@@ -67,6 +68,7 @@ export function clearStaffSession(bizId) {
   try {
     sessionStorage.removeItem(`sofra_staff_auth_${bizId}`)
     sessionStorage.removeItem(SESSION_KEY)
+    setAdminToken(bizId, null)
   } catch {}
 }
 
@@ -236,6 +238,7 @@ export default function AdminLogin({ role = 'admin', onSuccess }) {
       if (res?.configured) {
         if (res.ok) {
           setAdminAuth(bizId, 'ok')
+          if (res.token) setAdminToken(bizId, res.token)
           setStaffSession(bizId, { role: 'owner', name: 'Yönetici', isMaster: true, authedAt: Date.now() })
           onSuccess()
         } else {
